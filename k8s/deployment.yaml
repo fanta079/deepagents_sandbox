@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepagents
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: deepagents
+  template:
+    metadata:
+      labels:
+        app: deepagents
+    spec:
+      containers:
+      - name: app
+        image: ghcr.io/fanta079/deepagents_sandbox:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: OPENSANDBOX_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: api-key

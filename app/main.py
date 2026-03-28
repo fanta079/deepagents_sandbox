@@ -34,9 +34,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    description="DeepAgents FastAPI — 支持多沙箱后端的 AI Agent 服务",
+    title="DeepAgents API",
+    version="1.2.0",
+    description="""
+    ## DeepAgents - Multi-Sandbox Agent Service
+    
+    ### Features
+    - 🤖 Agent Chat with SSE streaming
+    - 🔐 JWT Authentication with Refresh Token
+    - 📋 Task Queue with Celery
+    - 💾 Redis Caching with Token Blacklist
+    - 📁 File Upload with Cloud Storage
+    - 🐳 Docker & Kubernetes Ready
+    """,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
     lifespan=lifespan,
 )
 
