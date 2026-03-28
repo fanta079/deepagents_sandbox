@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./fastapi_project.db
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - DEBUG=false
+    volumes:
+      - ./app/uploads:/app/app/uploads
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
