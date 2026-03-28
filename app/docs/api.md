@@ -950,6 +950,44 @@ POST /api/v1/auth/refresh
 }
 ```
 
+### 9.3 登出
+
+```
+POST /api/v1/auth/logout
+```
+
+**描述**: 用户登出，将当前 Access Token 加入黑名单。Token 黑名单有效期最长 1 天。
+
+**请求体** (`LogoutRequest`)
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `token` | string | ✅ | 当前 Access Token |
+
+**请求体示例**
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**响应** (200 OK)
+
+```json
+{
+  "message": "登出成功"
+}
+```
+
+**错误响应** (401 Unauthorized)
+
+```json
+{
+  "detail": "Token 无效"
+}
+```
+
 ---
 
 ## 10. 文件管理 `/api/v1/files`
@@ -1148,4 +1186,51 @@ SMTP_FROM=noreply@example.com
 
 ---
 
-*文档版本: 1.1.0 | 最后更新: 2026-03-28*
+*文档版本: 1.2.0 | 最后更新: 2026-03-28*
+
+---
+
+## 16. 统一错误码
+
+所有业务错误均使用统一错误码，便于客户端程序化处理。
+
+### 16.1 错误码一览
+
+| 错误码 | 说明 |
+|--------|------|
+| `AUTH_001` | Invalid credentials — 用户名或密码错误 |
+| `AUTH_002` | Token expired — Token 已过期 |
+| `AUTH_003` | Token invalid — Token 无效或已被黑名单 |
+| `USER_001` | User not found — 用户不存在 |
+| `USER_002` | User already exists — 用户名或邮箱已被注册 |
+| `TASK_001` | Task not found — 任务不存在 |
+| `TASK_002` | Invalid task status — 非法任务状态或状态流转 |
+| `VALIDATION_001` | Validation error — 数据校验失败 |
+
+### 16.2 Token 黑名单
+
+登出后 Token 会被加入黑名单，黑名单基于 JWT `jti`（JWT ID）标识，有效期最长 1 天。
+
+**后端存储**:
+
+- Redis（优先）：`token:blacklist:<jti>`
+- 内存回退（Redis 不可用时）：进程重启后黑名单丢失
+
+---
+
+## 17. 缓存层
+
+### 17.1 缓存策略
+
+| 缓存项 | 后端 | TTL | 说明 |
+|--------|------|-----|------|
+| Token 黑名单 | Redis / 内存 | ≤ 86400s | logout 后 token 失效 |
+| 其他业务缓存 | Redis / 内存 | 可配置 | — |
+
+### 17.2 Redis 不可用时
+
+系统自动检测 Redis 可用性，不可用时回退到进程内内存字典。内存模式下缓存重启后丢失，但不影响核心功能。
+
+---
+
+*文档版本: 1.2.0 | 最后更新: 2026-03-28*

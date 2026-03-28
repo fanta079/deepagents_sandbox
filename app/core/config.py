@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "app/uploads"
     MAX_FILE_SIZE_MB: int = 10
 
+    # ——— Redis 配置 ——————————————————————————————————————————
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str = ""
+
     class Config:
         env_file = ".env"
 

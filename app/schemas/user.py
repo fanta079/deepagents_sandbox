@@ -88,3 +88,8 @@ class LoginRequest(BaseModel):
     """登录请求"""
     username: str
     password: str
+
+
+class LogoutRequest(BaseModel):
+    """登出请求"""
+    token: str

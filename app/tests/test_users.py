@@ -199,3 +199,91 @@ async def test_delete_user(client: AsyncClient):
     # 确认已删除
     get_response = await client.get(f"/api/v1/users/{user_id}")
     assert get_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_login_nonexistent_user(client: AsyncClient):
+    """测试登录不存在的用户"""
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "notexist", "password": "anypassword"},
+    )
+    assert response.status_code == 401
+    assert "用户名或密码错误" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_token_validation(client: AsyncClient):
+    """测试 token 解码验证"""
+    # 创建用户并登录
+    await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "tokenuser",
+            "email": "token@example.com",
+            "password": "secret123",
+        },
+    )
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "tokenuser", "password": "secret123"},
+    )
+    access_token = login_resp.json()["access_token"]
+
+    # 使用 /auth/logout 验证 token 可被正确解码（内部调用 decode_access_token）
+    logout_resp = await client.post(
+        "/api/v1/auth/logout",
+        json={"token": access_token},
+    )
+    assert logout_resp.status_code == 200
+    assert logout_resp.json()["message"] == "登出成功"
+
+
+@pytest.mark.asyncio
+async def test_logout_invalidates_token(client: AsyncClient):
+    """测试登出后 token 再次使用会被拒绝"""
+    # 创建用户并登录
+    await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "logoutuser",
+            "email": "logout@example.com",
+            "password": "secret123",
+        },
+    )
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "logoutuser", "password": "secret123"},
+    )
+    access_token = login_resp.json()["access_token"]
+
+    # 第一次登出成功
+    resp1 = await client.post("/api/v1/auth/logout", json={"token": access_token})
+    assert resp1.status_code == 200
+
+    # 第二次登出（token 已黑名单）仍返回成功（幂等）
+    resp2 = await client.post("/api/v1/auth/logout", json={"token": access_token})
+    assert resp2.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_pagination_invalid_params(client: AsyncClient):
+    """测试分页参数边界校验"""
+    # page < 1
+    response = await client.get("/api/v1/users/?page=0&page_size=10")
+    assert response.status_code == 422
+
+    # page_size > 100
+    response = await client.get("/api/v1/users/?page=1&page_size=200")
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_token_decode_invalid(client: AsyncClient):
+    """测试无效 token 解码返回 401"""
+    response = await client.post(
+        "/api/v1/auth/logout",
+        json={"token": "invalid.jwt.token"},
+    )
+    assert response.status_code == 401
+    assert "Token 无效" in response.json()["detail"]

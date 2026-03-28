@@ -255,3 +255,109 @@ async def test_delete_running_task_fails(client: AsyncClient):
     response = await client.delete(f"/api/v1/tasks/{task_id}")
     assert response.status_code == 400
     assert "正在运行，无法删除" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_status_transition_invalid(client: AsyncClient):
+    """测试非法状态流转被拒绝"""
+    user_id = await create_test_user(client, "invalidtrans")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "非法流转任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # pending -> success 直接流转（非法，必须经过 running）
+    response = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "success", "result": "作弊"},
+    )
+    assert response.status_code == 400
+    assert "非法状态流转" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_retry_max_retries_exceeded(client: AsyncClient):
+    """测试达到最大重试次数后无法再重试"""
+    user_id = await create_test_user(client, "maxretry")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "已达上限任务", "owner_id": user_id, "max_retries": 1},
+    )
+    task_id = create_resp.json()["id"]
+
+    # 第一次失败
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "failed", "error": "Error 1"},
+    )
+    # 第一次重试成功
+    retry1 = await client.patch(f"/api/v1/tasks/{task_id}/retry")
+    assert retry1.json()["retry_count"] == 1
+
+    # 第二次失败
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "failed", "error": "Error 2"},
+    )
+    # 第二次重试应该失败（已达 max_retries=1）
+    response = await client.patch(f"/api/v1/tasks/{task_id}/retry")
+    assert response.status_code == 400
+    assert "最大重试次数" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_retry_resets_task_state(client: AsyncClient):
+    """测试重试后任务状态正确重置"""
+    user_id = await create_test_user(client, "retryreset")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "重置测试任务", "owner_id": user_id, "max_retries": 2},
+    )
+    task_id = create_resp.json()["id"]
+
+    # 运行并失败
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running", "progress": 50},
+    )
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "failed", "error": "Some error"},
+    )
+
+    # 重试
+    retry_resp = await client.patch(f"/api/v1/tasks/{task_id}/retry")
+    data = retry_resp.json()
+    assert data["status"] == "pending"
+    assert data["retry_count"] == 1
+    assert data["error"] is None
+    assert data["progress"] == 0
+    assert data["started_at"] is None
+    assert data["completed_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_cancel_running_task(client: AsyncClient):
+    """测试取消运行中的任务"""
+    user_id = await create_test_user(client, "cancelrunning")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "运行中取消任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # 先运行
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running"},
+    )
+
+    # 取消
+    cancel_resp = await client.post(f"/api/v1/tasks/{task_id}/cancel")
+    assert cancel_resp.status_code == 200
+    assert cancel_resp.json()["status"] == "cancelled"

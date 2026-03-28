@@ -14,10 +14,12 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     verify_refresh_token,
+    decode_access_token,
 )
 from app.core.exceptions import UnauthorizedException
+from app.core.cache import blacklist_token
 from app.models import User
-from app.schemas import TokenResponse, Token, RefreshRequest, LoginRequest
+from app.schemas import TokenResponse, Token, RefreshRequest, LoginRequest, LogoutRequest
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -79,3 +81,29 @@ async def refresh(refresh_in: RefreshRequest, db: AsyncSession = Depends(get_db)
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/logout")
+async def logout(
+    logout_in: LogoutRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    用户登出，将当前 Access Token 加入黑名单
+
+    Path: POST /api/v1/auth/logout
+    """
+    payload = decode_access_token(logout_in.token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token 无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    jti = payload.get("jti")
+    if jti:
+        # 黑名单有效期最多 1 天，与 access_token 最大生命周期对齐
+        blacklist_token(jti, expire_seconds=60 * 60 * 24)
+
+    return {"message": "登出成功"}
