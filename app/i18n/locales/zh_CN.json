@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "login_success": "登录成功",
+    "login_failed": "登录失败",
+    "token_expired": "令牌已过期",
+    "token_invalid": "令牌无效",
+    "refresh_success": "刷新成功",
+    "logout_success": "登出成功"
+  },
+  "user": {
+    "not_found": "用户不存在",
+    "already_exists": "用户已存在",
+    "created": "用户创建成功",
+    "updated": "用户更新成功",
+    "deleted": "用户删除成功",
+    "batch_deleted": "批量删除成功",
+    "batch_updated": "批量更新成功",
+    "exists_check": "用户存在性检查完成"
+  },
+  "task": {
+    "not_found": "任务不存在",
+    "status_updated": "状态已更新",
+    "created": "任务创建成功",
+    "deleted": "任务删除成功",
+    "cancelled": "任务已取消",
+    "retried": "任务已重试",
+    "dispatched": "任务已分发",
+    "batch_created": "批量创建成功",
+    "batch_dispatched": "批量分发成功"
+  },
+  "agent": {
+    "chat_success": "对话成功",
+    "reset_success": "重置成功",
+    "health_ok": "健康状态正常"
+  },
+  "common": {
+    "bad_request": "请求参数错误",
+    "unauthorized": "未授权",
+    "forbidden": "禁止访问",
+    "not_found": "资源不存在",
+    "server_error": "服务器内部错误",
+    "rate_limited": "请求过于频繁"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "login_success": "ログイン成功",
+    "login_failed": "ログイン失敗",
+    "token_expired": "トークンが期限切れです",
+    "token_invalid": "トークンが無効です",
+    "refresh_success": "更新成功",
+    "logout_success": "ログアウト成功"
+  },
+  "user": {
+    "not_found": "ユーザーが見つかりません",
+    "already_exists": "ユーザーは既に存在します",
+    "created": "ユーザー作成成功",
+    "updated": "ユーザー更新成功",
+    "deleted": "ユーザー削除成功",
+    "batch_deleted": "一括削除成功",
+    "batch_updated": "一括更新成功",
+    "exists_check": "ユーザー存在チェック完了"
+  },
+  "task": {
+    "not_found": "タスクが見つかりません",
+    "status_updated": "ステータスが更新されました",
+    "created": "タスク作成成功",
+    "deleted": "タスク削除成功",
+    "cancelled": "タスクがキャンセルされました",
+    "retried": "タスクが再試行されました",
+    "dispatched": "タスクがディスパッチされました",
+    "batch_created": "一括作成成功",
+    "batch_dispatched": "一括ディスパッチ成功"
+  },
+  "agent": {
+    "chat_success": "チャット成功",
+    "reset_success": "リセット成功",
+    "health_ok": "ヘルスOK"
+  },
+  "common": {
+    "bad_request": "リクエストエラー",
+    "unauthorized": "認証が必要",
+    "forbidden": "アクセス禁止",
+    "not_found": "見つかりません",
+    "server_error": "サーバー内部エラー",
+    "rate_limited": "レート制限"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Login failed",
+    "token_expired": "Token expired",
+    "token_invalid": "Token invalid",
+    "refresh_success": "Refresh successful",
+    "logout_success": "Logout successful"
+  },
+  "user": {
+    "not_found": "User not found",
+    "already_exists": "User already exists",
+    "created": "User created successfully",
+    "updated": "User updated successfully",
+    "deleted": "User deleted successfully",
+    "batch_deleted": "Batch delete successful",
+    "batch_updated": "Batch update successful",
+    "exists_check": "User existence check completed"
+  },
+  "task": {
+    "not_found": "Task not found",
+    "status_updated": "Status updated",
+    "created": "Task created successfully",
+    "deleted": "Task deleted successfully",
+    "cancelled": "Task cancelled",
+    "retried": "Task retried",
+    "dispatched": "Task dispatched",
+    "batch_created": "Batch creation successful",
+    "batch_dispatched": "Batch dispatch successful"
+  },
+  "agent": {
+    "chat_success": "Chat successful",
+    "reset_success": "Reset successful",
+    "health_ok": "Health OK"
+  },
+  "common": {
+    "bad_request": "Bad request",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "not_found": "Not found",
+    "server_error": "Internal server error",
+    "rate_limited": "Rate limited"
+  }
+}

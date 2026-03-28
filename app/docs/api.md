@@ -1233,4 +1233,279 @@ SMTP_FROM=noreply@example.com
 
 ---
 
-*文档版本: 1.2.0 | 最后更新: 2026-03-28*
+## 18. API v2 版本控制 `/api/v2`
+
+> v2 在 v1 基础上新增批量操作、GraphQL 端点及多语言支持。
+
+### 18.1 用户管理 v2 `/api/v2/users`
+
+v2 用户路由与 v1 (`/api/v1/users`) 共享相同基础功能，额外提供以下端点：
+
+#### 批量删除用户
+
+```
+POST /api/v2/users/batch/delete
+```
+
+**请求体**
+
+```json
+{
+  "user_ids": ["id1", "id2", "id3"]
+}
+```
+
+**响应** (204 No Content)
+
+---
+
+#### 批量更新用户状态
+
+```
+PATCH /api/v2/users/batch/update
+```
+
+**请求体**
+
+```json
+{
+  "user_ids": ["id1", "id2"],
+  "is_active": false
+}
+```
+
+**响应** (200 OK) — 返回更新后的用户对象列表
+
+---
+
+#### 批量检查用户存在性
+
+```
+GET /api/v2/users/batch/exists?user_ids=id1,id2,id3
+```
+
+**响应** (200 OK)
+
+```json
+{
+  "exists": {
+    "id1": true,
+    "id2": false,
+    "id3": true
+  },
+  "all_exist": false
+}
+```
+
+---
+
+### 18.2 任务队列 v2 `/api/v2/tasks`
+
+#### 批量创建任务
+
+```
+POST /api/v2/tasks/batch
+```
+
+**请求体**
+
+```json
+{
+  "tasks": [
+    {
+      "title": "任务1",
+      "owner_id": "user_uuid",
+      "priority": "normal"
+    },
+    {
+      "title": "任务2",
+      "owner_id": "user_uuid",
+      "priority": "high"
+    }
+  ]
+}
+```
+
+**响应** (201 Created) — 返回创建的任务对象列表
+
+---
+
+#### 批量分发任务
+
+```
+POST /api/v2/tasks/batch/dispatch
+```
+
+**请求体**
+
+```json
+{
+  "task_ids": ["task_id1", "task_id2"]
+}
+```
+
+**响应** (200 OK)
+
+```json
+{
+  "dispatched": ["task_id1"],
+  "skipped": [{"task_id": "task_id2", "status": "running"}],
+  "mode": "async"
+}
+```
+
+---
+
+## 19. GraphQL API `/graphql`
+
+> Strawberry GraphQL 支持，兼容 FastAPI。访问 `/graphql` 使用交互式 Playground。
+
+### 19.1 Query
+
+#### 获取用户列表
+
+```graphql
+query {
+  users(limit: 10) {
+    id
+    username
+    email
+    createdAt
+  }
+}
+```
+
+#### 获取单个用户
+
+```graphql
+query {
+  user(userId: "uuid") {
+    id
+    username
+    email
+    createdAt
+  }
+}
+```
+
+#### 获取任务列表
+
+```graphql
+query {
+  tasks(status: "pending", ownerId: "uuid", limit: 20) {
+    id
+    title
+    status
+    priority
+    createdAt
+    updatedAt
+  }
+}
+```
+
+#### 获取任务状态统计
+
+```graphql
+query {
+  taskStats {
+    pending
+    running
+    success
+    failed
+    cancelled
+  }
+}
+```
+
+#### 健康检查
+
+```graphql
+query {
+  health {
+    status
+    version
+  }
+}
+```
+
+### 19.2 Mutation
+
+#### Agent 对话
+
+```graphql
+mutation {
+  chat(message: "你好") {
+    message
+    success
+  }
+}
+```
+
+#### 重置 Agent
+
+```graphql
+mutation {
+  resetAgent(backend: "opensandbox") {
+    message
+    success
+  }
+}
+```
+
+---
+
+## 20. 国际化 (i18n)
+
+### 20.1 支持语言
+
+| 语言代码 | 说明 |
+|----------|------|
+| `zh_CN` | 简体中文（默认） |
+| `en_US` | 英语 |
+| `ja_JP` | 日语 |
+| `ko_KR` | 韩语 |
+
+### 20.2 语言检测
+
+系统通过请求头 `Accept-Language` 自动检测语言，按以下优先级：
+
+1. `Accept-Language` 请求头（精确匹配）
+2. 默认语言 `zh_CN`
+
+### 20.3 翻译消息结构
+
+```python
+from app.i18n import get_message
+
+# 示例
+get_message("zh_CN", "auth.login_success")
+# -> "登录成功"
+
+get_message("en_US", "user.not_found")
+# -> "User not found"
+
+# 支持嵌套 key
+get_message("zh_CN", "task.status_updated")
+# -> "状态已更新"
+```
+
+### 20.4 翻译文件位置
+
+```
+app/i18n/
+├── __init__.py
+├── middleware.py
+└── locales/
+    ├── zh_CN.json
+    ├── en_US.json
+    ├── ja_JP.json
+    └── ko_KR.json
+```
+
+### 20.5 中间件
+
+`I18nMiddleware` 自动将语言代码注入 `request.state.lang`，路由中可通过 `request.state.lang` 访问当前语言。
+
+---
+
+*文档版本: 2.0.0 | 最后更新: 2026-03-28*

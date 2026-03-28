@@ -1,0 +1,44 @@
+{
+  "auth": {
+    "login_success": "로그인 성공",
+    "login_failed": "로그인 실패",
+    "token_expired": "토큰 만료",
+    "token_invalid": "토큰 무효",
+    "refresh_success": "갱신 성공",
+    "logout_success": "로그아웃 성공"
+  },
+  "user": {
+    "not_found": "사용자를 찾을 수 없습니다",
+    "already_exists": "사용자가 이미 존재합니다",
+    "created": "사용자 생성 성공",
+    "updated": "사용자 업데이트 성공",
+    "deleted": "사용자 삭제 성공",
+    "batch_deleted": "일괄 삭제 성공",
+    "batch_updated": "일괄 업데이트 성공",
+    "exists_check": "사용자 존재 확인 완료"
+  },
+  "task": {
+    "not_found": "작업을 찾을 수 없습니다",
+    "status_updated": "상태가 업데이트되었습니다",
+    "created": "작업 생성 성공",
+    "deleted": "작업 삭제 성공",
+    "cancelled": "작업이 취소되었습니다",
+    "retried": "작업이 재시도되었습니다",
+    "dispatched": "작업이 디스패치되었습니다",
+    "batch_created": "일괄 생성 성공",
+    "batch_dispatched": "일괄 디스패치 성공"
+  },
+  "agent": {
+    "chat_success": "챗 성공",
+    "reset_success": "리셋 성공",
+    "health_ok": "상태 정상"
+  },
+  "common": {
+    "bad_request": "잘못된 요청",
+    "unauthorized": "미인증",
+    "forbidden": "접근 금지",
+    "not_found": "찾을 수 없음",
+    "server_error": "서버 내부 오류",
+    "rate_limited": "속도 제한"
+  }
+}
