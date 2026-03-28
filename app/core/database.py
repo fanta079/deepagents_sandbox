@@ -24,6 +24,10 @@ DATABASE_URL = os.getenv(
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=3600,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
 )
 

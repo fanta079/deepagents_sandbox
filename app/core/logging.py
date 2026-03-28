@@ -7,10 +7,44 @@
 
 import json
 import logging
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Optional
 
+# ——— 日志脱敏 —————————————————————————————————————————————
+
+SENSITIVE_KEYS = ["password", "token", "secret", "api_key", "Authorization", "access_token", "refresh_token"]
+
+
+def mask_sensitive(data: str) -> str:
+    """
+    替换日志中的敏感字段值为 ***MASKED***。
+
+    支持格式:
+    - "password": "secret123"
+    - 'password': 'secret123'
+    - password="secret123"
+    - Authorization: Bearer xxx
+    """
+    for key in SENSITIVE_KEYS:
+        # JSON / dict-style: key": "value" 或 key': 'value'
+        pattern = rf'({key}["\']?\s*[:=]\s*["\']?)([^"\'&\s]+)'
+        data = re.sub(pattern, r'\1***MASKED***', data, flags=re.IGNORECASE)
+    return data
+
+
+class SensitiveFormatter(logging.Formatter):
+    """格式化器：对每条日志消息执行敏感字段脱敏"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.msg = mask_sensitive(str(record.msg))
+        if record.args:
+            record.args = tuple(mask_sensitive(str(a)) for a in record.args)
+        return super().format(record)
+
+
+# ——— JSON Formatter —————————————————————————————————————————————
 
 class JSONFormatter(logging.Formatter):
     """
@@ -95,10 +129,13 @@ def setup_logging(
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-    # Console handler
+    # Console handler (always use SensitiveFormatter for privacy)
     if text_stream:
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
+        console_handler.setFormatter(SensitiveFormatter(
+            fmt="%(asctime)s | %(levelname)-8s | %(module)s:%(lineno)d | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
         root_logger.addHandler(console_handler)
 
     # JSON file handler（可选）

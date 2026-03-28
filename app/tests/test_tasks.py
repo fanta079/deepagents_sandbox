@@ -361,3 +361,250 @@ async def test_cancel_running_task(client: AsyncClient):
     cancel_resp = await client.post(f"/api/v1/tasks/{task_id}/cancel")
     assert cancel_resp.status_code == 200
     assert cancel_resp.json()["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_cancel_completed_task_fails(client: AsyncClient):
+    """测试取消已完成的任务会失败"""
+    user_id = await create_test_user(client, "cancelcompleted")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "已完成任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # pending -> success
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "success", "result": "Done"},
+    )
+
+    cancel_resp = await client.post(f"/api/v1/tasks/{task_id}/cancel")
+    assert cancel_resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_cancel_failed_task_fails(client: AsyncClient):
+    """测试取消失败任务会失败（只能取消 pending/running）"""
+    user_id = await create_test_user(client, "cancelfailed")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "失败任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # pending -> failed
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "failed", "error": "Error"},
+    )
+
+    cancel_resp = await client.post(f"/api/v1/tasks/{task_id}/cancel")
+    assert cancel_resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_task_progress_update(client: AsyncClient):
+    """测试任务进度更新"""
+    user_id = await create_test_user(client, "progresstask")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "进度任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # pending -> running (设置进度)
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running", "progress": 50},
+    )
+    assert resp.json()["progress"] == 50
+
+    # 更新进度
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running", "progress": 80},
+    )
+    assert resp.json()["progress"] == 80
+
+
+@pytest.mark.asyncio
+async def test_task_status_timestamp_started_at(client: AsyncClient):
+    """测试任务进入 running 时 started_at 被设置"""
+    user_id = await create_test_user(client, "starttime")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "时间戳任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running"},
+    )
+    assert resp.json()["started_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_task_status_timestamp_completed_at(client: AsyncClient):
+    """测试任务进入终态时 completed_at 被设置"""
+    user_id = await create_test_user(client, "completetime")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "完成时间任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "success", "result": "Done"},
+    )
+    assert resp.json()["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_task_priority_update(client: AsyncClient):
+    """测试更新任务优先级"""
+    user_id = await create_test_user(client, "prioritytask")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "优先级任务", "owner_id": user_id, "priority": "low"},
+    )
+    task_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"priority": "urgent"},
+    )
+    assert resp.json()["priority"] == "urgent"
+
+
+@pytest.mark.asyncio
+async def test_task_tags_update(client: AsyncClient):
+    """测试更新任务标签"""
+    user_id = await create_test_user(client, "tagstask")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "标签任务", "owner_id": user_id, "tags": ["a"]},
+    )
+    task_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"tags": ["a", "b", "c"]},
+    )
+    assert resp.json()["tags"] == ["a", "b", "c"]
+
+
+@pytest.mark.asyncio
+async def test_cannot_update_pending_task_fields_when_running(client: AsyncClient):
+    """测试任务 running 时不能修改 title/description 等字段"""
+    user_id = await create_test_user(client, "norunningupdate")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "运行中不可改", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # 置为 running
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running"},
+    )
+
+    # 尝试修改 title
+    resp = await client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"title": "新标题"},
+    )
+    assert resp.status_code == 400
+    assert "不允许修改" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_task_status_update(client: AsyncClient):
+    """测试更新不存在任务的状态返回 404"""
+    resp = await client.patch(
+        "/api/v1/tasks/nonexistent-id/status",
+        json={"status": "running"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_task_retry(client: AsyncClient):
+    """测试重试不存在的任务返回 404"""
+    resp = await client.patch("/api/v1/tasks/nonexistent-id/retry")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_task_cancel(client: AsyncClient):
+    """测试取消不存在的任务返回 404"""
+    resp = await client.post("/api/v1/tasks/nonexistent-id/cancel")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_task_filter_by_owner(client: AsyncClient):
+    """测试按 owner_id 过滤任务"""
+    user1 = await create_test_user(client, "ownertask1")
+    user2 = await create_test_user(client, "ownertask2")
+
+    await client.post(
+        "/api/v1/tasks/",
+        json={"title": "用户1任务", "owner_id": user1},
+    )
+    await client.post(
+        "/api/v1/tasks/",
+        json={"title": "用户2任务", "owner_id": user2},
+    )
+
+    resp = await client.get(f"/api/v1/tasks/?owner_id={user1}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert all(t["owner_id"] == user1 for t in data)
+
+
+@pytest.mark.asyncio
+async def test_task_filter_by_multiple_statuses(client: AsyncClient):
+    """测试按状态过滤后列表只有该状态的任务"""
+    user_id = await create_test_user(client, "multifilter")
+
+    create_resp = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "状态列表任务", "owner_id": user_id},
+    )
+    task_id = create_resp.json()["id"]
+
+    # 创建另一个任务
+    create_resp2 = await client.post(
+        "/api/v1/tasks/",
+        json={"title": "第二个任务", "owner_id": user_id},
+    )
+    task2_id = create_resp2.json()["id"]
+
+    # 只让 task_id 进入 success
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "running"},
+    )
+    await client.patch(
+        f"/api/v1/tasks/{task_id}/status",
+        json={"status": "success", "result": "Done"},
+    )
+    # task2 保持 pending
+
+    resp = await client.get("/api/v1/tasks/?status=pending")
+    data = resp.json()
+    assert all(t["status"] == "pending" for t in data)
+    assert not any(t["id"] == task_id for t in data)
+

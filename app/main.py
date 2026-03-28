@@ -52,6 +52,22 @@ app = FastAPI(
     - 🐳 Docker & Kubernetes Ready
     - 🌍 Internationalization (i18n) Support
     - 📊 GraphQL API
+    - ✅ Health Check with DB/Redis status
+
+    ### Authentication
+    - Register: `POST /api/v1/users/` → `{"username":"test","email":"test@example.com","password":"secret123"}`
+    - Login: `POST /api/v1/auth/login` → `{"username":"test","password":"secret123"}` → `{"access_token":"...","refresh_token":"..."}`
+    - Refresh: `POST /api/v1/auth/refresh` → `{"refresh_token":"..."}`
+
+    ### Task Lifecycle
+    ```
+    pending → running → success / failed / cancelled
+    ```
+    Only `failed` tasks can be retried (up to `max_retries` times).
+
+    ### Rate Limits
+    - Default: 100 req/min per IP
+    - Agent endpoints: 10 req/min per IP
     """,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -125,4 +141,41 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    """
+    健康检查接口
+
+    返回应用状态及数据库、Redis 连通性。
+    任何一项检查失败返回 503。
+    """
+    checks = {
+        "status": "ok",
+        "database": await _check_database(),
+        "redis": await _check_redis(),
+    }
+    if not all(c == "ok" for c in checks.values()):
+        from fastapi import HTTPException
+        raise HTTPException(503, checks)
+    return checks
+
+
+async def _check_database() -> str:
+    """检查数据库连接"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return "ok"
+    except Exception:
+        return "error"
+
+
+async def _check_redis() -> str:
+    """检查 Redis 连接"""
+    try:
+        from app.core.cache import _redis_client, _use_redis
+        if _use_redis and _redis_client:
+            _redis_client.ping()
+        return "ok"
+    except Exception:
+        return "error"

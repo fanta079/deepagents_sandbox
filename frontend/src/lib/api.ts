@@ -154,42 +154,53 @@ export const chatStreamWithAgent = async function* (
   messages: AgentMessage[],
   backend: string = "opensandbox"
 ): AsyncGenerator<string, void, unknown> {
-  const res = await fetch(`${API_URL}/api/v1/agent/chat/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(typeof window !== "undefined" && localStorage.getItem("access_token")
-        ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-        : {}),
-    },
-    body: JSON.stringify({ messages, backend, stream: true }),
-  });
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/agent/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(typeof window !== "undefined" && localStorage.getItem("access_token")
+            ? { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
+            : {}),
+        },
+        body: JSON.stringify({ messages, backend, stream: true }),
+      });
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  if (!res.body) throw new Error("No response body");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.body) throw new Error("No response body");
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") return;
-          if (data.startsWith("ERROR:")) throw new Error(data.slice(6));
-          yield data;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") return;
+              if (data.startsWith("ERROR:")) throw new Error(data.slice(6));
+              yield data;
+            }
+          }
         }
+        break; // 正常结束
+      } finally {
+        reader.releaseLock();
       }
+    } catch (error) {
+      retries--;
+      if (retries === 0) throw error;
+      // 指数退避: 1s, 2s
+      await new Promise((r) => setTimeout(r, 1000 * (3 - retries)));
     }
-  } finally {
-    reader.releaseLock();
   }
 };
 

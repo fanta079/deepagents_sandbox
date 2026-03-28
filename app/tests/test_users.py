@@ -287,3 +287,152 @@ async def test_token_decode_invalid(client: AsyncClient):
     )
     assert response.status_code == 401
     assert "Token 无效" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_user_missing_required_field(client: AsyncClient):
+    """测试缺少必填字段"""
+    response = await client.post(
+        "/api/v1/users/",
+        json={"username": "incomplete"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_user_username_too_short(client: AsyncClient):
+    """测试用户名过短（<3字符）"""
+    response = await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "ab",
+            "email": "short@example.com",
+            "password": "password123",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_user_username_too_long(client: AsyncClient):
+    """测试用户名过长（>50字符）"""
+    response = await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "a" * 51,
+            "email": "long@example.com",
+            "password": "password123",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_user_partial(client: AsyncClient):
+    """测试部分更新用户（只更新 email）"""
+    create_resp = await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "partialuser",
+            "email": "old@example.com",
+            "password": "password123",
+        },
+    )
+    user_id = create_resp.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/users/{user_id}",
+        json={"email": "new@example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json()["email"] == "new@example.com"
+    assert response.json()["username"] == "partialuser"  # 未修改
+
+
+@pytest.mark.asyncio
+async def test_update_user_password(client: AsyncClient):
+    """测试更新用户密码后可以用新密码登录"""
+    await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "pwupdate",
+            "email": "pwupdate@example.com",
+            "password": "oldpassword",
+        },
+    )
+    create_resp = await client.post(
+        "/api/v1/users/",
+        json={
+            "username": "pwupdate",
+            "email": "pwupdate@example.com",
+            "password": "oldpassword",
+        },
+    )
+    user_id = create_resp.json()["id"]
+
+    await client.patch(
+        f"/api/v1/users/{user_id}",
+        json={"password": "newpassword"},
+    )
+
+    # 用新密码登录
+    login_resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "pwupdate", "password": "newpassword"},
+    )
+    assert login_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_user(client: AsyncClient):
+    """测试删除不存在的用户返回 404"""
+    response = await client.delete("/api/v1/users/nonexistent-uuid")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_nonexistent_user(client: AsyncClient):
+    """测试获取不存在的用户返回 404"""
+    response = await client.get("/api/v1/users/nonexistent-uuid")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_nonexistent_user(client: AsyncClient):
+    """测试更新不存在的用户返回 404"""
+    response = await client.patch(
+        "/api/v1/users/nonexistent-uuid",
+        json={"full_name": "Ghost"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_login_with_empty_username(client: AsyncClient):
+    """测试空用户名登录返回 422"""
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "", "password": "any"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_login_with_empty_password(client: AsyncClient):
+    """测试空密码登录返回 422"""
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "someuser", "password": ""},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_with_empty(client: AsyncClient):
+    """测试空 refresh_token 返回 422"""
+    response = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": ""},
+    )
+    assert response.status_code == 422
+

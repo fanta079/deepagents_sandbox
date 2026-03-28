@@ -118,6 +118,45 @@ def delete_cache(key: str) -> None:
     _memory_store.pop(key, None)
 
 
+# ——— 缓存穿透/击穿保护 —————————————————————————————————————————————
+
+async def get_cache_with_fallback(key: str, fallback, ttl: int = 300):
+    """
+    缓存穿透/击穿保护。
+
+    穿透保护：key 不存在时才调用 fallback（与普通 get_cache 配合）
+    击穿保护：多个并发请求同时发现 cache miss 时，只允许一个请求执行 fallback，
+             其他请求等待后重试从缓存获取结果。
+
+    Args:
+        key: 缓存键
+        fallback: 异步回退函数 () -> Any
+        ttl: 缓存有效期（秒）
+
+    Returns:
+        缓存值或 fallback 的返回值
+    """
+    import asyncio
+
+    cached = await get_cache(key)
+    if cached is not None:
+        return cached
+
+    # 防止击穿：加锁
+    lock_key = f"lock:{key}"
+    if await get_cache(lock_key):
+        await asyncio.sleep(0.1)
+        return await get_cache_with_fallback(key, fallback, ttl)
+
+    await set_cache(lock_key, "1", expire_seconds=10)
+    try:
+        result = await fallback()
+        await set_cache(key, str(result), expire_seconds=ttl)
+        return result
+    finally:
+        await delete_cache(lock_key)
+
+
 # ——— Token 黑名单 —————————————————————————————————————————————
 
 TOKEN_BLACKLIST_PREFIX = "token:blacklist:"

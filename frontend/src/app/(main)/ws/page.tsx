@@ -36,9 +36,19 @@ export default function WsPage() {
       path: "/ws",
       query: { user_id: userName },
       transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
-    newSocket.on("connect", () => setIsConnected(true));
+    newSocket.on("connect", () => {
+      setIsConnected(true);
+      setMessages((prev) => [
+        ...prev,
+        { type: "system", content: "已重新连接", timestamp: new Date().toISOString() },
+      ]);
+    });
     newSocket.on("disconnect", () => setIsConnected(false));
 
     newSocket.on("message", (data: string) => {
@@ -67,6 +77,18 @@ export default function WsPage() {
     });
 
     newSocket.on("connect_error", () => setIsConnected(false));
+    newSocket.on("reconnect_attempt", (attempt: number) => {
+      setMessages((prev) => [
+        ...prev,
+        { type: "system", content: `正在重连 (${attempt}/5)...`, timestamp: new Date().toISOString() },
+      ]);
+    });
+    newSocket.on("reconnect_failed", () => {
+      setMessages((prev) => [
+        ...prev,
+        { type: "system", content: "重连失败，请刷新页面", timestamp: new Date().toISOString() },
+      ]);
+    });
 
     setSocket(newSocket);
     setShowLogin(false);
