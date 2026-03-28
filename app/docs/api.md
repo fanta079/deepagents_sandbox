@@ -793,6 +793,22 @@ data: {"time": "2026-03-28 12:00:02", "timestamp": 1743225602.0}\n\n
 }
 ```
 
+**统一业务异常格式（AppException）**
+
+```json
+{
+  "code": "NOT_FOUND",
+  "message": "资源不存在"
+}
+```
+
+| 错误码 | 说明 |
+|--------|------|
+| `NOT_FOUND` | 资源不存在（404） |
+| `UNAUTHORIZED` | 未授权（401） |
+| `FORBIDDEN` | 禁止访问（403） |
+| `VALIDATION_ERROR` | 数据校验失败（422） |
+
 ---
 
 ## 7. 全局 Schema 一览
@@ -806,6 +822,9 @@ data: {"time": "2026-03-28 12:00:02", "timestamp": 1743225602.0}\n\n
 | `UserUpdate` | 更新请求体（全字段可选） |
 | `UserResponse` | 响应体（包含 id, is_active, is_superuser, 时间戳） |
 | `UserBrief` | 简要信息（嵌套场景使用） |
+| `Token` | JWT Token 响应（仅 access_token，兼容旧接口） |
+| `TokenResponse` | 完整 Token 响应（access_token + refresh_token） |
+| `RefreshRequest` | 刷新 Token 请求体（refresh_token） |
 
 ### 7.2 Task Schema
 
@@ -860,10 +879,10 @@ data: {"time": "2026-03-28 12:00:02", "timestamp": 1743225602.0}\n\n
 ### 9.1 用户登录
 
 ```
-POST /api/v1/users/auth/login
+POST /api/v1/auth/login
 ```
 
-**描述**: 用户登录，获取 JWT Access Token（有效期 30 分钟）。
+**描述**: 用户登录，获取 JWT Access Token 和 Refresh Token。
 
 **请求体** (`LoginRequest`)
 
@@ -877,6 +896,47 @@ POST /api/v1/users/auth/login
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `access_token` | string | JWT Access Token，有效期 30 分钟 |
+| `refresh_token` | string | JWT Refresh Token，有效期 7 天 |
+| `token_type` | string | 固定为 `bearer` |
+
+**错误响应** (401 Unauthorized)
+
+```json
+{
+  "detail": "用户名或密码错误"
+}
+```
+
+---
+
+### 9.2 刷新 Token
+
+```
+POST /api/v1/auth/refresh
+```
+
+**描述**: 使用 Refresh Token 换取新的 Access Token 和 Refresh Token。
+
+**请求体** (`RefreshRequest`)
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `refresh_token` | string | ✅ | 登录时获取的 Refresh Token |
+
+**响应** (200 OK)
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer"
 }
 ```
@@ -885,7 +945,8 @@ POST /api/v1/users/auth/login
 
 ```json
 {
-  "detail": "用户名或密码错误"
+  "code": "UNAUTHORIZED",
+  "message": "Refresh Token 无效或已过期"
 }
 ```
 

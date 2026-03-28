@@ -9,20 +9,27 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token
+from app.core.security import (
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    verify_refresh_token,
+)
+from app.core.exceptions import UnauthorizedException
 from app.models import User
-from app.schemas import Token, LoginRequest
+from app.schemas import TokenResponse, Token, RefreshRequest, LoginRequest
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=TokenResponse)
 async def login(login_in: LoginRequest, db: AsyncSession = Depends(get_db)):
     """
-    用户登录，获取 JWT Access Token
+    用户登录，获取 JWT Access Token 和 Refresh Token
 
     Path: POST /api/v1/auth/login
-    Token 有效期: 30 分钟
+    Access Token 有效期: 30 分钟
+    Refresh Token 有效期: 7 天
     """
     stmt = select(User).where(User.username == login_in.username)
     result = await db.execute(stmt)
@@ -42,4 +49,33 @@ async def login(login_in: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     access_token = create_access_token(data={"sub": user.id})
-    return Token(access_token=access_token)
+    refresh_token = create_refresh_token(data={"sub": user.id})
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(refresh_in: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    """
+    使用 Refresh Token 换取新的 Access Token
+
+    Path: POST /api/v1/auth/refresh
+    Refresh Token 有效期: 7 天
+    """
+    payload = verify_refresh_token(refresh_in.refresh_token)
+    if not payload:
+        raise UnauthorizedException(message="Refresh Token 无效或已过期")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise UnauthorizedException(message="Refresh Token 解析失败")
+
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise UnauthorizedException(message="用户不存在或已被禁用")
+
+    access_token = create_access_token(data={"sub": user.id})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)

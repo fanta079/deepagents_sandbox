@@ -13,6 +13,8 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.errors import app_exception_handler
+from app.core.exceptions import AppException
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.routers import agent, example, sse, users, tasks, files, websocket, auth
 
@@ -35,6 +37,10 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# ——— Unified Exception Handler —————————————————————————————————————————
+
+app.add_exception_handler(AppException, app_exception_handler)
 
 # ——— Middleware ————————————————————————————————————————————————————————————
 

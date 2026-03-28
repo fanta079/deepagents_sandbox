@@ -60,15 +60,28 @@ class UserBrief(BaseModel):
 # ——— Auth Schemas ————————————————————————————————————————————————————
 
 class Token(BaseModel):
-    """JWT Token 响应"""
+    """JWT Token 响应（仅 access_token，兼容旧接口）"""
     access_token: str
     token_type: str = "bearer"
+
+
+class TokenResponse(BaseModel):
+    """完整 Token 响应（包含 access_token + refresh_token）"""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    """刷新 Token 请求"""
+    refresh_token: str
 
 
 class TokenPayload(BaseModel):
     """JWT Token Payload"""
     sub: str  # user_id
     exp: Optional[int] = None
+    type: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
