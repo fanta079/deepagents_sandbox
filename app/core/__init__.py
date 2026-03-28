@@ -4,5 +4,18 @@ Core 模块
 
 from app.core.config import settings
 from app.core.database import get_db, init_db, drop_db
+from app.core.storage import StorageBackend, LocalStorage, S3Storage, get_storage
+from app.core.logging import setup_logging, JSONFormatter
 
-__all__ = ["settings", "get_db", "init_db", "drop_db"]
+__all__ = [
+    "settings",
+    "get_db",
+    "init_db",
+    "drop_db",
+    "StorageBackend",
+    "LocalStorage",
+    "S3Storage",
+    "get_storage",
+    "setup_logging",
+    "JSONFormatter",
+]

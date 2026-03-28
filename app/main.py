@@ -15,13 +15,20 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.core.errors import app_exception_handler
 from app.core.exceptions import AppException
+from app.core.logging import setup_logging
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.routers import agent, example, sse, users, tasks, files, websocket, auth
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库"""
+    """应用生命周期：启动时初始化数据库 + 配置日志"""
+    setup_logging(
+        level=settings.LOG_LEVEL,
+        log_format=settings.LOG_FORMAT,
+        json_file=settings.LOG_JSON_FILE,
+        text_stream=True,
+    )
     await init_db()
     yield
 

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -34,6 +36,18 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     REDIS_PASSWORD: str = ""
+
+    # ——— 日志配置 ——————————————————————————————————————————
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"  # "json" | "text"
+    LOG_JSON_FILE: Optional[str] = None  # JSON 日志文件路径，留空则仅输出到控制台
+
+    # ——— 存储配置 ——————————————————————————————————————————
+    STORAGE_TYPE: str = "local"  # "local" | "s3"
+    S3_BUCKET: str = ""
+    S3_REGION: str = "us-east-1"
+    S3_ENDPOINT: Optional[str] = None
+    S3_PUBLIC_URL_BASE: Optional[str] = None
 
     class Config:
         env_file = ".env"

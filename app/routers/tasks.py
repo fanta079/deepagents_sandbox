@@ -18,6 +18,8 @@ from app.core.email import notify_task_status_change
 from app.core.webhook import notify_task_webhook
 from app.models import Task, TaskStatus, TaskPriority, User
 from app.schemas import TaskCreate, TaskUpdate, TaskStatusUpdate, TaskResponse
+from app.tasks.celery_app import celery, is_celery_available
+from app.tasks.task_handlers import send_email_task, execute_task
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
@@ -61,6 +63,65 @@ async def create_task(
     )
 
     return task
+
+
+# ——— Dispatch（Celery 异步 / 同步降级）—————————————————————————————————
+
+@router.post("/{task_id}/dispatch", response_model=dict)
+async def dispatch_task(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    将任务分发给 Celery worker 异步执行。
+    
+    如果 Celery/Redis 不可用，则降级为同步执行。
+    仅允许 pending 状态的任务被分发。
+    """
+    stmt = select(Task).where(Task.id == task_id)
+    result = await db.execute(stmt)
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    if task.status != TaskStatus.PENDING:
+        raise HTTPException(status_code=400, detail=f"任务状态为 {task.status.value}，仅 pending 任务可分发")
+
+    if is_celery_available():
+        # 异步：交给 Celery worker 执行
+        execute_task.delay(task_id, task.owner_id, task.title)
+        return {
+            "mode": "async",
+            "task_id": task_id,
+            "message": "任务已提交到 Celery 队列",
+        }
+    else:
+        # 降级：同步执行（阻塞）
+        from datetime import datetime
+        task.status = TaskStatus.RUNNING
+        task.started_at = datetime.utcnow()
+        await db.commit()
+
+        try:
+            import time
+            time.sleep(1)  # 模拟执行
+            task.status = TaskStatus.SUCCESS
+            task.result = f"Task '{task.title}' completed (sync mode)"
+            task.completed_at = datetime.utcnow()
+        except Exception as e:
+            task.status = TaskStatus.FAILED
+            task.error = str(e)
+            task.completed_at = datetime.utcnow()
+        finally:
+            await db.commit()
+            await db.refresh(task)
+
+        return {
+            "mode": "sync",
+            "task_id": task_id,
+            "status": task.status.value,
+            "message": "Celery 不可用，任务已同步执行",
+        }
 
 
 # ——— Read（分页 + 搜索 + 过滤）————————————————————————————————————
