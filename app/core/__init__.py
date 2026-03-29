@@ -7,6 +7,7 @@ from app.core.database import get_db, init_db, drop_db
 from app.core.storage import StorageBackend, LocalStorage, S3Storage, get_storage
 from app.core.logging import setup_logging, JSONFormatter, SensitiveFormatter, mask_sensitive
 from app.core.rate_limit import limiter, user_limiter, get_user_id
+from app.core.memory import agent_memory, AgentMemory
 
 __all__ = [
     "settings",
@@ -24,4 +25,6 @@ __all__ = [
     "limiter",
     "user_limiter",
     "get_user_id",
+    "agent_memory",
+    "AgentMemory",
 ]

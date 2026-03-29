@@ -1,7 +1,7 @@
 """
 任务队列路由
 
-路径前缀: /api/v1/tasks
+路径前缀: /api/v1/tasks（由 main.py 控制版本前缀）
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from app.schemas import TaskCreate, TaskUpdate, TaskStatusUpdate, TaskResponse
 from app.tasks.celery_app import celery, is_celery_available
 from app.tasks.task_handlers import send_email_task, execute_task
 
-router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
+router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 # ——— Create ————————————————————————————————————————————————————————————————

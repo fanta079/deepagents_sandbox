@@ -1,7 +1,7 @@
 """
 Agent 路由 v2 — 支持多 Agent 并行对话
 
-路径前缀: /api/v2/agent
+路径前缀: /api/v2/agent（由 main.py 控制版本前缀）
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -13,7 +13,7 @@ from app.core.rate_limit import limiter
 
 from app.sandbox.agent_runner import SandboxAgent, get_agent, shutdown_agent
 
-router = APIRouter(prefix="/api/v2/agent", tags=["agent"])
+router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 class Message(BaseModel):

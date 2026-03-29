@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: deepagents
+  labels:
+    app: deepagents
+    version: v1.2.0
 spec:
   replicas: 3
   selector:
@@ -11,15 +14,82 @@ spec:
     metadata:
       labels:
         app: deepagents
+        version: v1.2.0
     spec:
       containers:
       - name: app
         image: ghcr.io/fanta079/deepagents_sandbox:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
+          protocol: TCP
         env:
+        # ——— JWT ——————————————————————————————————————————
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: SECRET_KEY
+        # ——— OpenSandbox ——————————————————————————————————————
         - name: OPENSANDBOX_API_KEY
           valueFrom:
             secretKeyRef:
               name: deepagents-secrets
-              key: api-key
+              key: OPENSANDBOX_API_KEY
+        - name: OPENSANDBOX_DOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: OPENSANDBOX_DOMAIN
+        - name: OPENSANDBOX_IMAGE
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: OPENSANDBOX_IMAGE
+        # ——— Redis ——————————————————————————————————————————
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: REDIS_PORT
+        - name: REDIS_DB
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: REDIS_DB
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: deepagents-secrets
+              key: REDIS_PASSWORD
+        # ——— App Settings ——————————————————————————————————————
+        - name: DEBUG
+          value: "False"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: LOG_FORMAT
+          value: "json"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5

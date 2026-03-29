@@ -1,7 +1,7 @@
 """
 用户管理路由 v2 — 批量操作 + 增强功能
 
-路径前缀: /api/v2/users
+路径前缀: /api/v2/users（由 main.py 控制版本前缀）
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from app.core.security import get_password_hash
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse
 
-router = APIRouter(prefix="/api/v2/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 # ——— Schemas ————————————————————————————————————————————————————————————————

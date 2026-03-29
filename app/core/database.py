@@ -21,15 +21,19 @@ DATABASE_URL = os.getenv(
 
 # ——— Async Engine & Session ———————————————————————————————————————————
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=3600,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
-)
+_is_sqlite = "sqlite" in DATABASE_URL
+_engine_kwargs = {
+    "echo": False,
+    "connect_args": {"check_same_thread": False} if _is_sqlite else {},
+}
+if not _is_sqlite:
+    _engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 3600,
+    })
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

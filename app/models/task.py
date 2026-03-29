@@ -73,6 +73,7 @@ class Task(Base):
         default=TaskPriority.NORMAL,
         nullable=False,
     )
+    priority_int: Mapped[int] = mapped_column(Integer, default=5, nullable=False)  # 1-10 整数优先级
     tags: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list, nullable=True)
     result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

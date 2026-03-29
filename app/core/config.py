@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     OPENSANDBOX_DOMAIN: str = "api.opensandbox.io"
     OPENSANDBOX_IMAGE: str = "ubuntu"
 
+    # ——— 沙箱资源限制配置 ——————————————————————————————
+    SANDBOX_TIMEOUT: int = 30          # seconds
+    SANDBOX_MEMORY_LIMIT: str = "256mb"
+    SANDBOX_CPU_LIMIT: float = 1.0
+
     # ——— 文件上传配置 ——————————————————————————————————————
     UPLOAD_DIR: str = "app/uploads"
     MAX_FILE_SIZE_MB: int = 10

@@ -7,11 +7,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, AsyncIterator
 
-from app.core.rate_limit import limiter
-
+from app.core.rate_limit import limiter, get_user_id
+from app.core.memory import agent_memory
 from app.sandbox.agent_runner import SandboxAgent, get_agent, shutdown_agent
 
-router = APIRouter(prefix="/api/v1/agent", tags=["agent"])
+router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 class Message(BaseModel):
@@ -36,10 +36,20 @@ class ChatResponse(BaseModel):
 async def chat(request: Request, request_body: ChatRequest):
     """与 Agent 对话"""
     try:
+        user_id = get_user_id(request)
+        # 保存用户消息到记忆
+        for msg in request_body.messages:
+            agent_memory.add_message(user_id, msg.role, msg.content)
+
         agent_instance = await get_agent(backend_type=request_body.backend)
         result = await agent_instance.invoke([m.model_dump() for m in request_body.messages])
+
+        # 保存 Agent 响应到记忆
+        response_content = result["messages"][-1].content
+        agent_memory.add_message(user_id, "assistant", response_content)
+
         return ChatResponse(
-            message=result["messages"][-1].content,
+            message=response_content,
             finish_reason="stop",
             backend=request_body.backend,
         )
@@ -51,20 +61,34 @@ async def chat(request: Request, request_body: ChatRequest):
 @limiter.limit("10/minute")
 async def chat_stream(request: Request, request_body: ChatRequest):
     """与 Agent 对话（流式版本，通过 SSE）"""
+    user_id = get_user_id(request)
+
     async def event_generator() -> AsyncIterator[str]:
         try:
+            # 保存用户消息到记忆
+            for msg in request_body.messages:
+                agent_memory.add_message(user_id, msg.role, msg.content)
+
             agent_instance = await get_agent(backend_type=request_body.backend)
             result = agent_instance.agent.invoke(
                 {"messages": [m.model_dump() for m in request_body.messages]},
                 stream=True,
             )
+            response_parts = []
             for chunk in result:
                 if chunk.get("messages"):
                     content = chunk["messages"][-1].content
                     if content:
+                        response_parts.append(content)
                         yield f"data: {content}\n\n"
                 elif chunk.get("type") == "content_block_delta":
-                    yield f"data: {chunk['content']}\n\n"
+                    part = chunk['content']
+                    response_parts.append(part)
+                    yield f"data: {part}\n\n"
+            # 保存 Agent 响应到记忆
+            full_response = "".join(response_parts)
+            if full_response:
+                agent_memory.add_message(user_id, "assistant", full_response)
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: ERROR: {str(e)}\n\n"

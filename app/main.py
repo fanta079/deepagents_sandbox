@@ -5,6 +5,8 @@ FastAPI 主入口
     uvicorn app.main:app --reload --port 8000
 """
 
+import asyncio
+import signal
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, APIRouter
@@ -17,16 +19,25 @@ from app.core.database import init_db
 from app.core.errors import app_exception_handler
 from app.core.exceptions import AppException
 from app.core.logging import setup_logging
+from app.core.middleware import TimeoutMiddleware
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.graphql.schema import schema as graphql_schema
 from app.i18n.middleware import I18nMiddleware
 from app.routers import agent, example, sse, users, tasks, files, websocket, auth
 from app.routers.v2 import users as v2_users, tasks as v2_tasks, agent as v2_agent
+from app.routers.metrics import router as metrics_router
+
+
+# ——— 优雅关闭 ———————————————————————————————————————————————————
+
+shutdown_event: asyncio.Event | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库 + 配置日志"""
+    """应用生命周期：启动时初始化 + 关闭时清理"""
+    global shutdown_event
+
     setup_logging(
         level=settings.LOG_LEVEL,
         log_format=settings.LOG_FORMAT,
@@ -34,7 +45,55 @@ async def lifespan(app: FastAPI):
         text_stream=True,
     )
     await init_db()
+
+    # 注册信号处理器
+    loop = asyncio.get_running_loop()
+    shutdown_event = asyncio.Event()
+
+    def _shutdown_signal_handler():
+        asyncio.create_task(_graceful_shutdown())
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _shutdown_signal_handler)
+        except NotImplementedError:
+            # Windows 不支持 add_signal_handler
+            pass
+
     yield
+
+    # 关闭时清理
+    await _graceful_shutdown()
+
+
+async def _graceful_shutdown():
+    """执行优雅关闭"""
+    if shutdown_event and shutdown_event.is_set():
+        return
+    shutdown_event = shutdown_event or asyncio.Event()
+    shutdown_event.set()
+
+    # 关闭 Agent 沙箱
+    try:
+        from app.sandbox.agent_runner import shutdown_agent
+        await shutdown_agent()
+    except Exception:
+        pass
+
+    # 关闭数据库连接
+    try:
+        from app.core.database import engine
+        await engine.dispose()
+    except Exception:
+        pass
+
+    # 关闭 Redis 连接
+    try:
+        from app.core.cache import _redis_client, _use_redis
+        if _use_redis and _redis_client:
+            _redis_client.close()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -95,6 +154,7 @@ app.add_middleware(
 )
 
 app.add_middleware(I18nMiddleware)
+app.add_middleware(TimeoutMiddleware)  # 请求超时中间件
 
 # ——— API Versioned Routers ————————————————————————————————————————————
 
@@ -119,6 +179,10 @@ app.include_router(sse.router)
 app.include_router(files.router)
 app.include_router(websocket.router)
 app.include_router(auth.router)
+
+# ——— Metrics Router ————————————————————————————————————————————————————
+
+app.include_router(metrics_router)
 
 
 # ——— GraphQL Router ————————————————————————————————————————————————————————

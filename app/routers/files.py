@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import settings
 
-router = APIRouter(prefix="/api/v1/files", tags=["files"])
+router = APIRouter(prefix="/files", tags=["files"])
 
 
 # 确保上传目录存在

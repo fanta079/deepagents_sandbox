@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.database import Base, get_db
 from app.main import app
+from app.models import User, Task  # noqa: F401 — registers tables with Base
 
 # 使用 SQLite 内存数据库进行测试
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -56,8 +57,8 @@ async def db_session():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client():
-    """AsyncClient fixture"""
+async def client(db_session):
+    """AsyncClient fixture — depends on db_session to ensure tables exist"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

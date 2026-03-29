@@ -17,7 +17,7 @@ from app.core.security import get_password_hash
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse
 
-router = APIRouter(prefix="/api/v1/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 # ——— Create ————————————————————————————————————————————————————————————————
