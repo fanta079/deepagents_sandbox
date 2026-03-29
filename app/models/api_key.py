@@ -35,7 +35,7 @@ class APIKey(Base):
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
     )
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256 hex
     key_prefix: Mapped[str] = mapped_column(String(20), nullable=False)  # 显示前缀 sk-xxx
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # 密钥名称

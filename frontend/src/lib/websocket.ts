@@ -25,14 +25,14 @@ export interface ReconnectingSocketOptions {
 }
 
 export interface ReconnectingSocketEvents {
-  onConnect?: (socket: Socket) => void;
-  onDisconnect?: (reason: string) => void;
-  onConnectError?: (error: Error) => void;
-  onReconnecting?: (attempt: number, delay: number) => void;
-  onReconnectFailed?: () => void;
-  onMessage?: (data: unknown) => void;
-  onSystem?: (data: unknown) => void;
-  onPersonal?: (data: unknown) => void;
+  onConnect?: (...args: unknown[]) => void;
+  onDisconnect?: (...args: unknown[]) => void;
+  onConnectError?: (...args: unknown[]) => void;
+  onReconnecting?: (...args: unknown[]) => void;
+  onReconnectFailed?: (...args: unknown[]) => void;
+  onMessage?: (...args: unknown[]) => void;
+  onSystem?: (...args: unknown[]) => void;
+  onPersonal?: (...args: unknown[]) => void;
   [event: string]: ((...args: unknown[]) => void) | undefined;
 }
 
