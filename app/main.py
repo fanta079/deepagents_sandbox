@@ -50,6 +50,10 @@ async def lifespan(app: FastAPI):
     from app.core.tracing import setup_tracing
     setup_tracing()
 
+    # LangSmith LLM 追踪初始化（可选）
+    from app.core.langsmith import setup_langsmith
+    setup_langsmith()
+
     # FastAPI 自动注入请求追踪
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor

@@ -1,7 +1,8 @@
 """
 SQLite + SQLAlchemy 数据库配置
 
-使用 async SQLAlchemy 以配合 FastAPI 异步路由
+使用 async SQLAlchemy 以配合 FastAPI 异步路由。
+支持 SQLite（开发）和 PostgreSQL（生产），通过 DATABASE_URL 或 POSTGRES_* 环境变量配置。
 """
 
 from __future__ import annotations
@@ -12,12 +13,11 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-# 数据库文件路径（项目根目录下）
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    f"sqlite+aiosqlite:///{os.path.join(BASE_DIR, 'fastapi_project.db')}",
-)
+from app.core.config import get_database_url
+
+# ——— 数据库 URL ————————————————————————————————————————————————————
+
+DATABASE_URL = get_database_url()
 
 # ——— Async Engine & Session ———————————————————————————————————————————
 
@@ -32,6 +32,8 @@ if not _is_sqlite:
         "max_overflow": 10,
         "pool_timeout": 30,
         "pool_recycle": 3600,
+        # PostgreSQL 连接池额外配置
+        "pool_pre_ping": True,
     })
 engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 

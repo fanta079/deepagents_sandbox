@@ -12,8 +12,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/lib/components";
 import { getDashboardStats } from "@/lib/api";
+import { useTranslation } from "@/i18n/I18nProvider";
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: getDashboardStats,
@@ -22,22 +24,22 @@ export default function DashboardPage() {
 
   const cards = [
     {
-      title: "用户总数",
+      titleKey: "dashboard.totalUsers" as const,
       value: stats?.user_count ?? "-",
       icon: Users,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      title: "任务总数",
+      titleKey: "dashboard.totalTasks" as const,
       value: stats?.task_count ?? "-",
       icon: ListChecks,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
-      title: "Agent 状态",
-      value: stats?.agent_status === "ok" ? "在线" : "离线",
+      titleKey: "dashboard.agentStatus" as const,
+      value: stats?.agent_status === "ok" ? t("common.online") : t("common.offline"),
       icon: BotMessageSquare,
       color: stats?.agent_status === "ok" ? "text-green-600" : "text-red-600",
       bg: stats?.agent_status === "ok" ? "bg-green-50" : "bg-red-50",
@@ -45,26 +47,26 @@ export default function DashboardPage() {
   ];
 
   const shortcuts = [
-    { label: "用户管理", href: "/users", icon: Users, desc: "管理所有用户" },
-    { label: "任务队列", href: "/tasks", icon: ListChecks, desc: "查看和处理任务" },
-    { label: "Agent 对话", href: "/agent", icon: BotMessageSquare, desc: "与 AI Agent 对话" },
-    { label: "文件管理", href: "/files", icon: LayoutDashboard, desc: "上传和下载文件" },
+    { labelKey: "nav.users" as const, href: "/users", icon: Users, descKey: "dashboard.manageUsers" as const },
+    { labelKey: "nav.tasks" as const, href: "/tasks", icon: ListChecks, descKey: "dashboard.manageTasks" as const },
+    { labelKey: "nav.agent" as const, href: "/agent", icon: BotMessageSquare, descKey: "dashboard.chatWithAgent" as const },
+    { labelKey: "nav.files" as const, href: "/files", icon: LayoutDashboard, descKey: "dashboard.manageFiles" as const },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">仪表盘</h1>
-        <p className="text-muted-foreground mt-1">欢迎使用 DeepAgents 管理后台</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("dashboard.title")}</h1>
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("dashboard.welcome")}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card key={card.title}>
+            <Card key={card.titleKey}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                <CardTitle className="text-sm font-medium">{t(card.titleKey)}</CardTitle>
                 <div className={`rounded-full p-2 ${card.bg}`}>
                   <Icon className={`h-4 w-4 ${card.color}`} />
                 </div>
@@ -82,8 +84,8 @@ export default function DashboardPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">快捷入口</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <h2 className="text-lg font-semibold mb-3">{t("dashboard.shortcuts")}</h2>
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {shortcuts.map((s) => {
             const Icon = s.icon;
             return (
@@ -95,8 +97,8 @@ export default function DashboardPage() {
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <div className="font-medium">{s.label}</div>
-                        <div className="text-xs text-muted-foreground">{s.desc}</div>
+                        <div className="font-medium">{t(s.labelKey)}</div>
+                        <div className="text-xs text-muted-foreground">{t(s.descKey)}</div>
                       </div>
                       <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" />
                     </div>

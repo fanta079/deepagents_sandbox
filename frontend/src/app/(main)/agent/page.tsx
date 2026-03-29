@@ -6,8 +6,10 @@ import { Send, Trash2, BotMessageSquare, User as UserIcon } from "lucide-react";
 import { chatWithAgent } from "@/lib/api";
 import type { AgentMessage } from "@/types";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n/I18nProvider";
 
 export default function AgentPage() {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +39,7 @@ export default function AgentPage() {
       const assistantMessage: AgentMessage = { role: "assistant", content: res.message };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "请求失败，请重试");
+      setError(err.response?.data?.detail || t("common.error"));
     } finally {
       setIsLoading(false);
     }
@@ -46,15 +48,15 @@ export default function AgentPage() {
   const clearMessages = () => setMessages([]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-8rem)]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agent 对话</h1>
-          <p className="text-muted-foreground">与 AI Agent 进行对话交互</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("common.agent")}</h1>
+          <p className="text-muted-foreground text-sm">{t("dashboard.chatWithAgent")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0}>
           <Trash2 className="h-4 w-4 mr-2" />
-          清空对话
+          {t("common.clearChat")}
         </Button>
       </div>
 
@@ -63,7 +65,7 @@ export default function AgentPage() {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <BotMessageSquare className="h-12 w-12 mb-4 opacity-50" />
-              <p>开始与 Agent 对话吧</p>
+              <p>{t("common.startChat")}</p>
             </div>
           )}
 
@@ -76,7 +78,7 @@ export default function AgentPage() {
               )}
               <div
                 className={cn(
-                  "max-w-[70%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap",
+                  "max-w-[85%] sm:max-w-[70%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap break-words",
                   msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                 )}
               >
@@ -96,7 +98,7 @@ export default function AgentPage() {
                 <BotMessageSquare className="h-4 w-4 text-primary animate-pulse" />
               </div>
               <div className="bg-muted rounded-lg px-4 py-2 text-sm">
-                <span className="animate-pulse">Agent 正在思考...</span>
+                <span className="animate-pulse">{t("common.thinking")}</span>
               </div>
             </div>
           )}
@@ -118,7 +120,7 @@ export default function AgentPage() {
             }}
             className="flex gap-2"
           >
-            <Input name="content" placeholder="输入消息..." autoComplete="off" disabled={isLoading} className="flex-1" />
+            <Input name="content" placeholder={t("common.inputPlaceholder")} autoComplete="off" disabled={isLoading} className="flex-1" />
             <Button type="submit" disabled={isLoading}>
               <Send className="h-4 w-4" />
             </Button>

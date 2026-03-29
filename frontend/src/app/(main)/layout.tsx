@@ -17,19 +17,22 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/lib/components";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslation } from "@/i18n/I18nProvider";
 
 const navItems = [
-  { href: "/", label: "仪表盘", icon: LayoutDashboard },
-  { href: "/users", label: "用户管理", icon: Users },
-  { href: "/tasks", label: "任务队列", icon: ListChecks },
-  { href: "/agent", label: "Agent 对话", icon: BotMessageSquare },
-  { href: "/files", label: "文件管理", icon: FolderOpen },
-  { href: "/ws", label: "WebSocket", icon: MessagesSquare },
+  { href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/users", labelKey: "nav.users", icon: Users },
+  { href: "/tasks", labelKey: "nav.tasks", icon: ListChecks },
+  { href: "/agent", labelKey: "nav.agent", icon: BotMessageSquare },
+  { href: "/files", labelKey: "nav.files", icon: FolderOpen },
+  { href: "/ws", labelKey: "nav.ws", icon: MessagesSquare },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -73,11 +76,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center border-b px-6">
-          <h1 className="text-xl font-bold">DeepAgents</h1>
+        <div className="flex h-14 sm:h-16 items-center border-b px-4 sm:px-6">
+          <h1 className="text-lg sm:text-xl font-bold">{t("common.appName")}</h1>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -93,40 +96,41 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{t(item.labelKey as any)}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t p-4">
+        <div className="border-t p-3 sm:p-4">
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4" />
-            退出登录
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {t("common.logout")}
           </Button>
         </div>
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="flex h-14 items-center gap-3 border-b bg-background px-4 md:px-6">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="lg:hidden flex-shrink-0"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           <div className="flex-1" />
+          <LanguageSwitcher className="mr-2" />
           <ThemeToggle />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
