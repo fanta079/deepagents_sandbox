@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "FastAPI Project"
+    APP_NAME: str = "DeepAgents"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 

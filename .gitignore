@@ -12,3 +12,7 @@ node_modules/
 .openclaw/
 *.db
 .next/
+
+# Next.js build
+.next/
+
