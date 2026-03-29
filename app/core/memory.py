@@ -64,3 +64,41 @@ def trim_messages(messages: list[dict], max_tokens: int = 4000) -> list[dict]:
         running_total += tokens
     
     return result
+
+
+class AgentMemory:
+    """In-memory agent context storage (per-user message history)."""
+
+    def __init__(self):
+        self._store: dict[str, list[dict]] = {}
+
+    def add_message(self, user_id: str, role: str, content: str) -> None:
+        if user_id not in self._store:
+            self._store[user_id] = []
+        self._store[user_id].append({"role": role, "content": content})
+
+    def get_history(self, user_id: str, limit: int | None = None) -> list[dict]:
+        history = self._store.get(user_id, [])
+        if limit:
+            return history[-limit:]
+        return history
+
+    def get_context_count(self, user_id: str) -> int:
+        return len(self._store.get(user_id, []))
+
+    def clear(self, user_id: str) -> None:
+        self._store.pop(user_id, None)
+
+    def trim_context(self, user_id: str, keep_last: int) -> int:
+        if user_id not in self._store:
+            return 0
+        msgs = self._store[user_id]
+        removed = len(msgs) - keep_last
+        if removed > 0:
+            self._store[user_id] = msgs[-keep_last:]
+        else:
+            self._store[user_id] = msgs
+        return max(removed, 0)
+
+
+agent_memory = AgentMemory()

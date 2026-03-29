@@ -5,7 +5,7 @@ DeepAgent 路由 - 通过 FastAPI 暴露 Agent 接口
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional, AsyncIterator
+from typing import List, Optional, AsyncIterator, Any
 
 from app.core.rate_limit import limiter, get_user_id
 from app.core.memory import agent_memory
@@ -179,3 +179,67 @@ async def reset_agent(backend: str = "opensandbox"):
 async def health():
     """健康检查"""
     return {"status": "ok", "backend": "opensandbox"}
+
+
+# ——— 多 Agent 协作端点 ——————————————————————————————————————————————
+
+from app.sandbox.multi_agent import orchestrator
+
+
+class MultiAgentInvokeRequest(BaseModel):
+    agent_names: list[str]
+    mode: str = "sequential"  # "sequential" | "parallel" | "dag"
+    input_text: str = ""
+    dag_definition: dict[str, list[str]] | None = None
+
+
+class RegisterAgentRequest(BaseModel):
+    name: str
+
+
+@router.post("/multi/invoke")
+async def multi_agent_invoke(request_body: MultiAgentInvokeRequest):
+    """
+    多 Agent 协作调用
+
+    mode=sequential: 串行执行，结果逐个传递
+    mode=parallel: 并行执行，结果汇总
+    mode=dag: DAG 执行，按依赖关系
+    """
+    try:
+        if request_body.mode == "sequential":
+            result = await orchestrator.invoke_sequential(
+                request_body.agent_names, request_body.input_text
+            )
+        elif request_body.mode == "parallel":
+            result = await orchestrator.invoke_parallel(
+                request_body.agent_names, request_body.input_text
+            )
+        elif request_body.mode == "dag":
+            if not request_body.dag_definition:
+                return {"error": "dag_definition required for DAG mode"}
+            result = await orchestrator.invoke_dag(
+                request_body.dag_definition, request_body.input_text
+            )
+        else:
+            return {"error": f"Unknown mode: {request_body.mode}"}
+        return {"result": result, "mode": request_body.mode}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/multi/agents")
+async def list_agents():
+    """列出已注册的 Agent"""
+    return {"agents": list(orchestrator.agents.keys())}
+
+
+@router.post("/multi/register")
+async def register_agent(name: str):
+    """注册新的 Agent 到编排器（占位，实际使用需通过代码注册）"""
+    return {
+        "message": f"Agent {name} registered (placeholder - use code registration)",
+        "agents": list(orchestrator.agents.keys()),
+    }

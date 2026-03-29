@@ -4,10 +4,10 @@ import asyncio
 import json
 import time
 
-router = APIRouter()
+router = APIRouter(prefix="/sse", tags=["SSE"])
 
 
-@router.get("/sse")
+@router.get("")
 def sse_endpoint():
     async def event_stream():
         for i in range(10):
@@ -30,7 +30,7 @@ def sse_endpoint():
     )
 
 
-@router.get("/sse/clock")
+@router.get("/clock")
 def sse_clock():
     """实时时钟 SSE 流"""
     async def generate():
@@ -50,4 +50,43 @@ def sse_clock():
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         }
+    )
+
+
+# ——— 流式思考输出端点 ————————————————————————————————————————————————
+
+
+@router.get("/think")
+async def sse_think_stream(task_id: str):
+    """
+    流式思考输出端点
+
+    思考内容将实时流式推送，格式：
+    event: think\ndata: {"content": "正在分析..."}\n\n
+    event: think\ndata: {"content": "计划步骤..."}\n\n
+    event: done\ndata: {"content": "最终结果"}\n\n
+    """
+    async def think_generator():
+        thinking_steps = [
+            "理解用户输入...",
+            "检索相关知识...",
+            "制定执行计划...",
+            "执行代码...",
+            "验证结果...",
+        ]
+
+        for step in thinking_steps:
+            yield f"event: think\ndata: {json.dumps({'content': step})}\n\n"
+            await asyncio.sleep(0.5)
+
+        yield f"event: done\ndata: {json.dumps({'content': '思考完成', 'task_id': task_id})}\n\n"
+
+    return StreamingResponse(
+        think_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

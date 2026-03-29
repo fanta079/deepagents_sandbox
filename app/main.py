@@ -26,6 +26,7 @@ from app.i18n.middleware import I18nMiddleware
 from app.routers import agent, example, sse, users, tasks, files, websocket, auth
 from app.routers.v2 import users as v2_users, tasks as v2_tasks, agent as v2_agent
 from app.routers.metrics import router as metrics_router
+from app.routers.rag import router as rag_router
 
 
 # ——— 优雅关闭 ———————————————————————————————————————————————————
@@ -183,6 +184,10 @@ app.include_router(auth.router)
 # ——— Metrics Router ————————————————————————————————————————————————————
 
 app.include_router(metrics_router)
+
+# ——— RAG Router —————————————————————————————————————————————————————————
+
+app.include_router(rag_router)
 
 
 # ——— GraphQL Router ————————————————————————————————————————————————————————

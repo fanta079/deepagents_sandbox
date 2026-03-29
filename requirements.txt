@@ -33,3 +33,13 @@ ruff==0.6.7
 
 # GraphQL
 strawberry-graphql[fastapi]==0.243.0
+
+# Multi-Agent & LangGraph
+langgraph>=0.0.20
+langchain-core>=0.1.0
+langchain-community>=0.0.0
+langchain-huggingface>=0.0.0
+
+# Vector Store / RAG
+milvus-lite>=2.3.0
+pymilvus>=2.3.0
