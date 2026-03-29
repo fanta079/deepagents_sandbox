@@ -27,12 +27,12 @@ def build_context(messages: list[dict], system_prompt: str | None = None) -> lis
 
 def estimate_tokens(text: str) -> int:
     """
-    估算 token 数量（粗略估算，中文≈2token/字，英文≈4token/词）
+    估算 token 数量（粗略估算，中文约1.5token/字，英文约0.25token/词）
     """
     chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-    english_words = sum(1 for w in text.split() if w.isascii())
-    other = len(text) - chinese_chars - sum(1 for c in english_words if c.isascii())
-    return int(chinese_chars * 1.5 + english_words * 0.25 + other * 1)
+    english_words_count = sum(1 for w in text.split() if w.isascii())
+    other = len(text) - chinese_chars - english_words_count
+    return int(chinese_chars * 1.5 + english_words_count * 0.25 + other * 1)
 
 
 def trim_messages(messages: list[dict], max_tokens: int = 4000) -> list[dict]:

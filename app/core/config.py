@@ -97,6 +97,7 @@ def get_database_url() -> str:
     优先使用 DATABASE_URL 环境变量（支持 SQLite 和 PostgreSQL）。
     未设置时根据 POSTGRES_* 配置拼接 PostgreSQL URL。
     """
+    import os as _os
     if settings.DATABASE_URL:
         return settings.DATABASE_URL
     if settings.POSTGRES_PASSWORD:
@@ -105,4 +106,4 @@ def get_database_url() -> str:
             f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
         )
     # 默认使用 SQLite（开发模式）
-    return f"sqlite+aiosqlite:///{os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'fastapi_project.db')}"
+    return f"sqlite+aiosqlite:///{_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), 'fastapi_project.db')}"
