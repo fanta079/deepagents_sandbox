@@ -148,3 +148,77 @@ def setup_logging(
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.INFO)
     logging.getLogger("slowapi").setLevel(logging.WARNING)
+
+
+# ——— API 请求日志中间件 —————————————————————————————————————————————
+
+import time
+import logging as stdlib_logging
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
+logger_api = stdlib_logging.getLogger("api.request")
+
+
+class APIRequestLoggerMiddleware(BaseHTTPMiddleware):
+    """
+    Starlette 中间件，记录每个 API 请求的：
+    - 请求方法 + 路径
+    - User-Agent
+    - 请求体大小
+    - 响应状态码
+    - 响应体大小
+    - 请求耗时
+    """
+
+    # 排除的路径（避免记录 WebSocket、SSE 等）
+    EXCLUDE_PATHS = {"/ws", "/docs", "/openapi.json", "/redoc", "/favicon.ico"}
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        path = request.url.path
+        if path in self.EXCLUDE_PATHS:
+            return await call_next(request)
+
+        method = request.method
+        user_agent = request.headers.get("user-agent", "unknown")
+        content_length = request.headers.get("content-length", "0")
+
+        # 读取请求体（如果需要）
+        request_body: Optional[bytes] = None
+        if content_length and int(content_length) > 0 and int(content_length) < 1024 * 1024:
+            # 仅记录 < 1MB 的请求体
+            try:
+                request_body = await request.body()
+            except Exception:
+                request_body = None
+
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        response_body_size = response.headers.get("content-length", "0")
+        status_code = response.status_code
+
+        log_data = {
+            "method": method,
+            "path": path,
+            "status": status_code,
+            "user_agent": user_agent,
+            "request_size": len(request_body) if request_body else int(content_length),
+            "response_size": int(response_body_size) if response_body_size.isdigit() else 0,
+            "duration_ms": round(duration_ms, 2),
+        }
+
+        if request_body:
+            log_data["request_body"] = mask_sensitive(request_body.decode("utf-8", errors="replace"))
+
+        logger_api.info(
+            "API Request: %s %s | status=%d | ua=%s | "
+            "req_size=%d bytes | resp_size=%d bytes | duration=%.2fms",
+            method, path, status_code, user_agent,
+            log_data["request_size"], log_data["response_size"], log_data["duration_ms"],
+        )
+
+        return response
+

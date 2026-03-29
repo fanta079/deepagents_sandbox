@@ -24,6 +24,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       onClick={toggle}
       className={className}
+      aria-label={dark ? "切换到亮色模式" : "切换到暗色模式"}
       title={dark ? "切换到亮色模式" : "切换到暗色模式"}
       style={{
         display: "inline-flex",

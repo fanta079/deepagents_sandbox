@@ -1,5 +1,12 @@
 # DeepAgents Sandbox
 
+[![CI](https://github.com/fanta079/deepagents_sandbox/actions/workflows/ci.yml/badge.svg)](https://github.com/fanta079/deepagents_sandbox/actions)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
+[![Node Version](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org/)
+
 **支持多沙箱后端的 AI Agent 服务** —— 基于 FastAPI + OpenSandbox 构建。
 
 ---
@@ -107,6 +114,31 @@ npm run dev
 
 ---
 
+## 🚀 快速部署
+
+### Docker（一键部署）
+
+```bash
+docker-compose up -d
+```
+
+> 服务地址：http://localhost:8000 | 前端：http://localhost:3000
+
+### Kubernetes
+
+```bash
+kubectl apply -f k8s/
+```
+
+### 环境变量配置
+
+```bash
+cp .env.example .env
+# 编辑 .env 填入 OPENSANDBOX_API_KEY 和 JWT_SECRET_KEY
+```
+
+---
+
 ## 🐳 Docker 部署
 
 ```bash
@@ -175,6 +207,8 @@ deepagents_opensandbox/
 ---
 
 ## 📡 API 文档
+
+> 📖 **完整 API 文档：** http://localhost:8000/docs（启动后访问）
 
 启动服务后访问：http://localhost:8000/docs
 

@@ -4,13 +4,26 @@ Webhook 回调 — 任务状态变更时触发 Webhook
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# 支持的 Webhook 事件类型列表
+WEBHOOK_EVENTS: List[str] = [
+    "task.created",
+    "task.started",
+    "task.completed",
+    "task.failed",
+    "task.cancelled",
+    "user.created",
+    "user.deleted",
+    "agent.invoked",
+    "system.alert",
+]
 
 
 async def trigger_webhook_async(

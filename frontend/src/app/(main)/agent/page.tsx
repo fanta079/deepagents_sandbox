@@ -54,14 +54,14 @@ export default function AgentPage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("common.agent")}</h1>
           <p className="text-muted-foreground text-sm">{t("dashboard.chatWithAgent")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0 || isLoading}>
+        <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0 || isLoading} aria-label={t("common.clearChat")}>
           <Trash2 className="h-4 w-4 mr-2" />
           {t("common.clearChat")}
         </Button>
       </div>
 
       <Card className="flex-1 flex flex-col overflow-hidden">
-        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+        <CardContent className="flex-1 overflow-y-auto p-4 space-y-4" aria-live="polite" aria-label="对话消息列表" role="log">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <BotMessageSquare className="h-12 w-12 mb-4 opacity-50" />
@@ -121,7 +121,7 @@ export default function AgentPage() {
             className="flex gap-2"
           >
             <Input name="content" placeholder={t("common.inputPlaceholder")} autoComplete="off" disabled={isLoading} className="flex-1" />
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} aria-label={isLoading ? t("common.sending") || "发送中" : t("common.send") || "发送"}>
               {isLoading ? (
                 <>
                   <span className="animate-pulse mr-1">{t("common.sending") || "..."}</span>
