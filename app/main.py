@@ -27,6 +27,7 @@ from app.routers import agent, example, sse, users, tasks, files, websocket, aut
 from app.routers.v2 import users as v2_users, tasks as v2_tasks, agent as v2_agent
 from app.routers.metrics import router as metrics_router
 from app.routers.rag import router as rag_router
+from app.routers.admin import router as admin_router
 
 
 # ——— 优雅关闭 ———————————————————————————————————————————————————
@@ -229,6 +230,10 @@ app.include_router(apikeys.router)
 # ——— Metrics Router ————————————————————————————————————————————————————
 
 app.include_router(metrics_router)
+
+# ——— Admin Router
+
+app.include_router(admin_router)
 
 # ——— RAG Router —————————————————————————————————————————————————————————
 
