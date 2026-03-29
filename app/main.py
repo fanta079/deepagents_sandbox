@@ -21,7 +21,7 @@ from app.core.database import init_db
 from app.core.errors import app_exception_handler
 from app.core.exceptions import AppException
 from app.core.logging import setup_logging
-from app.core.middleware import TimeoutMiddleware
+from app.core.middleware import TimeoutMiddleware, RequestIDMiddleware
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.graphql.schema import schema as graphql_schema
 from app.i18n.middleware import I18nMiddleware
@@ -30,6 +30,7 @@ from app.routers.v2 import users as v2_users, tasks as v2_tasks, agent as v2_age
 from app.routers.metrics import router as metrics_router
 from app.routers.rag import router as rag_router
 from app.routers.admin import router as admin_router
+from app.routers.version import router as version_router
 
 
 # ——— 优雅关闭 ———————————————————————————————————————————————————
@@ -237,6 +238,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(I18nMiddleware)
 app.add_middleware(TimeoutMiddleware)  # 请求超时中间件
+app.add_middleware(RequestIDMiddleware)  # 请求 ID 追踪中间件
 
 # ——— API Versioned Routers ————————————————————————————————————————————
 
@@ -270,6 +272,7 @@ app.include_router(metrics_router)
 # ——— Admin Router
 
 app.include_router(admin_router)
+app.include_router(version_router)
 
 # ——— RAG Router —————————————————————————————————————————————————————————
 
@@ -302,10 +305,13 @@ async def health():
     返回应用状态及数据库、Redis 连通性。
     任何一项检查失败返回 503。
     """
+    db_check = await _check_database()
+    redis_check = await _check_redis()
+    db_status = db_check["status"] if isinstance(db_check, dict) else db_check
     checks = {
         "status": "ok",
-        "database": await _check_database(),
-        "redis": await _check_redis(),
+        "database": db_status,
+        "redis": redis_check,
     }
     if not all(c == "ok" for c in checks.values()):
         from fastapi import HTTPException
@@ -313,16 +319,26 @@ async def health():
     return checks
 
 
-async def _check_database() -> str:
-    """检查数据库连接"""
+async def _check_database() -> dict:
+    """检查数据库连接，返回详细信息"""
+    import time
     try:
         from sqlalchemy import text
-        from app.core.database import engine
+        from app.core.database import engine, _is_sqlite
+        start = time.perf_counter()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        return "ok"
-    except Exception:
-        return "error"
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        return {
+            "status": "ok",
+            "db_type": "sqlite" if _is_sqlite else "postgresql",
+            "latency_ms": latency_ms,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+        }
 
 
 async def _check_redis() -> str:
@@ -367,14 +383,31 @@ async def health_check_detailed():
 
     返回所有依赖服务的状态：API、数据库、Redis、沙箱、Celery。
     """
+    db_check = await _check_database()
+    redis_check = await _check_redis()
+    sandbox_check = await _check_sandbox()
+    celery_check = await _check_celery()
+
+    db_status = db_check["status"] if isinstance(db_check, dict) else db_check
     checks = {
         "api": "ok",
-        "database": await _check_database(),
-        "redis": await _check_redis(),
-        "sandbox": await _check_sandbox(),
-        "celery": await _check_celery(),
+        "database": db_check,
+        "redis": redis_check,
+        "sandbox": sandbox_check,
+        "celery": celery_check,
     }
-    overall = "healthy" if all(v in ("ok", "unavailable") for v in checks.values()) else "degraded"
+    _ok_values = {"ok", "unavailable"}
+
+    def _status(v):
+        if isinstance(v, dict):
+            return v.get("status", "error")
+        return v if v in _ok_values else "error"
+
+    overall = "healthy"
+    for v in [db_check, redis_check, sandbox_check, celery_check]:
+        if _status(v) not in _ok_values:
+            overall = "degraded"
+            break
     return {
         "status": overall,
         "checks": checks,

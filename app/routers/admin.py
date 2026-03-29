@@ -1,5 +1,5 @@
 """
-管理后台 API - 包含限流统计和数据库连接池状态
+管理后台 API - 包含限流统计、数据库连接池状态和版本信息
 
 注意：这些端点默认不暴露在公网，生产环境应通过内部网络或 VPN 访问。
 """
@@ -7,6 +7,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -27,7 +28,6 @@ async def get_rate_limit_stats():
     注意：详细统计（如每个 IP 的请求数）需要接入持久化存储。
     """
     try:
-        # limiter.stats() 返回限流器统计字典
         stats = limiter.stats()
         return RateLimitStats(
             total_requests=stats.get("total_requests", 0),
@@ -35,7 +35,6 @@ async def get_rate_limit_stats():
             message="限流已启用"
         )
     except Exception as e:
-        # 如果统计不可用，返回基本信息
         return RateLimitStats(
             total_requests=0,
             enabled=True,
@@ -57,17 +56,11 @@ async def pool_status():
     """
     数据库连接池状态
 
-    返回当前数据库连接池的使用情况：
-    - pool_size: 连接池大小
-    - checked_in: 空闲连接数
-    - checked_out: 已借出连接数
-    - overflow: 溢出连接数（超过 pool_size 的连接）
-    - invalid: 无效连接数
+    返回当前数据库连接池的使用情况。
     """
     from app.core.database import engine, _is_sqlite
 
     if _is_sqlite:
-        # SQLite 没有连接池概念
         return PoolStatus(
             pool_size=0,
             checked_in=0,
