@@ -9,8 +9,10 @@ import asyncio
 import signal
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from slowapi.errors import RateLimitExceeded
 from strawberry.fastapi import GraphQLRouter
 
@@ -189,15 +191,49 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 app.add_exception_handler(AppException, app_exception_handler)
 
+
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """捕获所有未处理异常，返回统一错误格式"""
+    from fastapi import HTTPException
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": f"HTTP_{exc.status_code}",
+                    "message": exc.detail,
+                    "details": {},
+                }
+            },
+        )
+    # 记录未知异常但不暴露给客户端
+    import logging
+    logging.getLogger("app").exception("Unhandled exception: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "服务器内部错误",
+                "details": {},
+            }
+        },
+    )
+
+
+app.add_exception_handler(Exception, generic_exception_handler)
+
 # ——— Middleware ————————————————————————————————————————————————————————————
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境请限制域名
+    allow_origins=settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(I18nMiddleware)
 app.add_middleware(TimeoutMiddleware)  # 请求超时中间件
@@ -298,3 +334,49 @@ async def _check_redis() -> str:
         return "ok"
     except Exception:
         return "error"
+
+
+# ——— 详细健康检查端点 ——————————————————————————————————————————————————————
+
+from datetime import datetime
+
+
+async def _check_sandbox() -> str:
+    """检查沙箱连接"""
+    try:
+        from app.sandbox.agent_runner import get_agent
+        await get_agent(backend_type="opensandbox")
+        return "ok"
+    except Exception:
+        return "error"
+
+
+async def _check_celery() -> str:
+    """检查 Celery 连接"""
+    try:
+        from app.tasks.celery_app import is_celery_available
+        return "ok" if is_celery_available else "unavailable"
+    except Exception:
+        return "error"
+
+
+@app.get("/health/detailed")
+async def health_check_detailed():
+    """
+    详细健康检查
+
+    返回所有依赖服务的状态：API、数据库、Redis、沙箱、Celery。
+    """
+    checks = {
+        "api": "ok",
+        "database": await _check_database(),
+        "redis": await _check_redis(),
+        "sandbox": await _check_sandbox(),
+        "celery": await _check_celery(),
+    }
+    overall = "healthy" if all(v in ("ok", "unavailable") for v in checks.values()) else "degraded"
+    return {
+        "status": overall,
+        "checks": checks,
+        "timestamp": datetime.utcnow().isoformat(),
+    }

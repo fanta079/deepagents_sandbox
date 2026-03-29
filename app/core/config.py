@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = ""
 
+    # ——— CORS 配置 ——————————————————————————————————————————————
+    ALLOWED_ORIGINS: str = ""  # 逗号分隔，如 "https://app.example.com,https://admin.example.com"，空则允许所有
+
     # ——— PostgreSQL 生产配置（SQLite 适合开发，生产推荐 PostgreSQL）——
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432

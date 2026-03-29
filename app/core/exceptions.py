@@ -5,6 +5,7 @@
 """
 
 from __future__ import annotations
+from typing import Any, Optional
 
 
 class AppException(Exception):
@@ -14,12 +15,20 @@ class AppException(Exception):
         code: 错误码，用于前端识别错误类型
         message: 人类可读的错误信息
         status_code: HTTP 状态码，默认 400
+        details: 附加细节（如字段校验错误列表）
     """
 
-    def __init__(self, code: str, message: str, status_code: int = 400) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status_code: int = 400,
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
         self.code = code
         self.message = message
         self.status_code = status_code
+        self.details = details or {}
         super().__init__(message)
 
 
@@ -47,5 +56,5 @@ class ForbiddenException(AppException):
 class ValidationException(AppException):
     """数据校验失败"""
 
-    def __init__(self, message: str = "数据校验失败") -> None:
-        super().__init__(code="VALIDATION_ERROR", message=message, status_code=422)
+    def __init__(self, message: str = "数据校验失败", details: Optional[dict[str, Any]] = None) -> None:
+        super().__init__(code="VALIDATION_ERROR", message=message, status_code=422, details=details)

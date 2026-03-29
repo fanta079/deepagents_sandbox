@@ -18,12 +18,15 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         exc: 业务异常实例
 
     Returns:
-        JSONResponse，包含 code 和 message 字段
+        JSONResponse，包含 error.code、error.message、error.details 字段
     """
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "code": exc.code,
-            "message": exc.message,
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                "details": getattr(exc, "details", {}),
+            }
         },
     )

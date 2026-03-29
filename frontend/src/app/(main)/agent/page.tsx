@@ -54,7 +54,7 @@ export default function AgentPage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("common.agent")}</h1>
           <p className="text-muted-foreground text-sm">{t("dashboard.chatWithAgent")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0}>
+        <Button variant="outline" size="sm" onClick={clearMessages} disabled={messages.length === 0 || isLoading}>
           <Trash2 className="h-4 w-4 mr-2" />
           {t("common.clearChat")}
         </Button>
@@ -122,7 +122,14 @@ export default function AgentPage() {
           >
             <Input name="content" placeholder={t("common.inputPlaceholder")} autoComplete="off" disabled={isLoading} className="flex-1" />
             <Button type="submit" disabled={isLoading}>
-              <Send className="h-4 w-4" />
+              {isLoading ? (
+                <>
+                  <span className="animate-pulse mr-1">{t("common.sending") || "..."}</span>
+                  <Send className="h-4 w-4" />
+                </>
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </form>
         </div>
