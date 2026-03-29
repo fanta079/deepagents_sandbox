@@ -1,0 +1,10 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/login/page": "app/login/page.js",
+  "/(main)/agent/page": "app/(main)/agent/page.js",
+  "/(main)/page": "app/(main)/page.js",
+  "/(main)/users/page": "app/(main)/users/page.js",
+  "/(main)/tasks/page": "app/(main)/tasks/page.js",
+  "/(main)/ws/page": "app/(main)/ws/page.js",
+  "/(main)/files/page": "app/(main)/files/page.js"
+}

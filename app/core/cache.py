@@ -120,7 +120,7 @@ def delete_cache(key: str) -> None:
 
 # ——— 缓存穿透/击穿保护 —————————————————————————————————————————————
 
-async def get_cache_with_fallback(key: str, fallback, ttl: int = 300):
+async def get_cache_with_fallback(key: str, fallback, ttl: int = 300, _depth: int = 0):
     """
     缓存穿透/击穿保护。
 
@@ -132,11 +132,14 @@ async def get_cache_with_fallback(key: str, fallback, ttl: int = 300):
         key: 缓存键
         fallback: 异步回退函数 () -> Any
         ttl: 缓存有效期（秒）
+        _depth: 递归深度（内部使用，不应手动传入）
 
     Returns:
         缓存值或 fallback 的返回值
     """
     import asyncio
+
+    MAX_DEPTH = 5
 
     cached = await get_cache(key)
     if cached is not None:
@@ -145,8 +148,11 @@ async def get_cache_with_fallback(key: str, fallback, ttl: int = 300):
     # 防止击穿：加锁
     lock_key = f"lock:{key}"
     if await get_cache(lock_key):
+        if _depth >= MAX_DEPTH:
+            logger.warning(f"⚠️ get_cache_with_fallback 递归深度超限（max={MAX_DEPTH}），直接调用 fallback")
+            return await fallback()
         await asyncio.sleep(0.1)
-        return await get_cache_with_fallback(key, fallback, ttl)
+        return await get_cache_with_fallback(key, fallback, ttl, _depth=_depth + 1)
 
     await set_cache(lock_key, "1", expire_seconds=10)
     try:
