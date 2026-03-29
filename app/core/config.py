@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     S3_ENDPOINT: Optional[str] = None
     S3_PUBLIC_URL_BASE: Optional[str] = None
 
+    # ——— Agent 上下文配置 ——————————————————————————————————
+    MAX_CONTEXT_MESSAGES: int = 50   # 最大上下文消息数
+    MAX_CONTEXT_TOKENS: int = 4000   # 最大 token 数（估算）
+
     class Config:
         env_file = ".env"
 

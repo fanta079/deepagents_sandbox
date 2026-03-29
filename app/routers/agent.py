@@ -2,13 +2,14 @@
 DeepAgent 路由 - 通过 FastAPI 暴露 Agent 接口
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, AsyncIterator
 
 from app.core.rate_limit import limiter, get_user_id
 from app.core.memory import agent_memory
+from app.core.config import settings
 from app.sandbox.agent_runner import SandboxAgent, get_agent, shutdown_agent
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -23,6 +24,7 @@ class ChatRequest(BaseModel):
     messages: List[Message]
     backend: str = "opensandbox"  # opensandbox, daytona, modal
     stream: bool = False
+    clear_context: bool = False  # 用户主动清空上下文
 
 
 class ChatResponse(BaseModel):
@@ -31,15 +33,30 @@ class ChatResponse(BaseModel):
     backend: str
 
 
+def _auto_trim(user_id: str) -> None:
+    """自动裁剪上下文，防止超过限制"""
+    count = agent_memory.get_context_count(user_id)
+    if count > settings.MAX_CONTEXT_MESSAGES:
+        agent_memory.trim_context(user_id, settings.MAX_CONTEXT_MESSAGES)
+
+
 @router.post("/chat", response_model=ChatResponse)
 @limiter.limit("10/minute")
 async def chat(request: Request, request_body: ChatRequest):
     """与 Agent 对话"""
     try:
         user_id = get_user_id(request)
+
+        # 用户主动清空上下文
+        if request_body.clear_context:
+            agent_memory.clear(user_id)
+
         # 保存用户消息到记忆
         for msg in request_body.messages:
             agent_memory.add_message(user_id, msg.role, msg.content)
+
+        # 自动裁剪超长上下文
+        _auto_trim(user_id)
 
         agent_instance = await get_agent(backend_type=request_body.backend)
         result = await agent_instance.invoke([m.model_dump() for m in request_body.messages])
@@ -63,11 +80,18 @@ async def chat_stream(request: Request, request_body: ChatRequest):
     """与 Agent 对话（流式版本，通过 SSE）"""
     user_id = get_user_id(request)
 
+    # 用户主动清空上下文
+    if request_body.clear_context:
+        agent_memory.clear(user_id)
+
     async def event_generator() -> AsyncIterator[str]:
         try:
             # 保存用户消息到记忆
             for msg in request_body.messages:
                 agent_memory.add_message(user_id, msg.role, msg.content)
+
+            # 自动裁剪超长上下文
+            _auto_trim(user_id)
 
             agent_instance = await get_agent(backend_type=request_body.backend)
             result = agent_instance.agent.invoke(
@@ -103,6 +127,39 @@ async def chat_stream(request: Request, request_body: ChatRequest):
         },
     )
 
+
+# ——— 上下文管理端点 ——————————————————————————————————————————
+
+@router.post("/context/clear")
+async def clear_context(request: Request):
+    """用户主动清空上下文"""
+    user_id = get_user_id(request)
+    agent_memory.clear(user_id)
+    return {"message": "上下文已清空", "user_id": user_id}
+
+
+@router.get("/context/info")
+async def context_info(request: Request):
+    """获取上下文状态"""
+    user_id = get_user_id(request)
+    count = agent_memory.get_context_count(user_id)
+    history = agent_memory.get_history(user_id, limit=5)
+    return {
+        "user_id": user_id,
+        "message_count": count,
+        "recent_messages": history
+    }
+
+
+@router.post("/context/trim")
+async def trim_context(request: Request, keep_last: int = 10):
+    """裁剪上下文，防止过长"""
+    user_id = get_user_id(request)
+    removed = agent_memory.trim_context(user_id, keep_last)
+    return {"message": f"已裁剪 {removed} 条消息", "remaining": keep_last}
+
+
+# ——— 其他端点 ————————————————————————————————————————————————
 
 @router.post("/reset")
 async def reset_agent(backend: str = "opensandbox"):
