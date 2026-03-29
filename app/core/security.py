@@ -101,3 +101,35 @@ def verify_refresh_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+# ——— API Key 哈希 ————————————————————————————————————————————————
+
+import hashlib
+
+
+def hash_api_key(api_key: str) -> str:
+    """
+    对 API Key 进行 SHA256 哈希（不存储明文）
+
+    Args:
+        api_key: 原始 API Key
+
+    Returns:
+        SHA256 十六进制字符串
+    """
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+def verify_api_key(plain_key: str, hashed_key: str) -> bool:
+    """
+    验证 API Key 是否匹配哈希值
+
+    Args:
+        plain_key: 原始 API Key
+        hashed_key: 存储的 SHA256 哈希
+
+    Returns:
+        True = 匹配，False = 不匹配
+    """
+    return hash_api_key(plain_key) == hashed_key

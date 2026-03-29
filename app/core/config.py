@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     MAX_CONTEXT_MESSAGES: int = 50   # 最大上下文消息数
     MAX_CONTEXT_TOKENS: int = 4000   # 最大 token 数（估算）
 
+    # ——— API Key 配置 ——————————————————————————————————————————
+    API_KEY_ENABLED: bool = True  # 是否启用 API Key 认证（开发时可关闭）
+
+    # ——— OpenTelemetry 配置 ——————————————————————————————————
+    OTEL_SERVICE_NAME: str = "deepagents"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
+    OTEL_ENABLED: bool = False  # 是否启用链路追踪
+
     class Config:
         env_file = ".env"
 

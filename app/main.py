@@ -23,7 +23,7 @@ from app.core.middleware import TimeoutMiddleware
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.graphql.schema import schema as graphql_schema
 from app.i18n.middleware import I18nMiddleware
-from app.routers import agent, example, sse, users, tasks, files, websocket, auth
+from app.routers import agent, example, sse, users, tasks, files, websocket, auth, apikeys
 from app.routers.v2 import users as v2_users, tasks as v2_tasks, agent as v2_agent
 from app.routers.metrics import router as metrics_router
 from app.routers.rag import router as rag_router
@@ -45,6 +45,37 @@ async def lifespan(app: FastAPI):
         json_file=settings.LOG_JSON_FILE,
         text_stream=True,
     )
+
+    # OpenTelemetry 追踪初始化
+    from app.core.tracing import setup_tracing
+    setup_tracing()
+
+    # FastAPI 自动注入请求追踪
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app)
+    except ImportError:
+        pass  # opentelemetry-instrumentation-fastapi 未安装
+
+    # SQLAlchemy 自动注入数据库查询追踪
+    try:
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from app.core.database import engine
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    except ImportError:
+        pass  # opentelemetry-instrumentation-sqlalchemy 未安装
+    except Exception:
+        pass
+
+    # Redis 自动注入缓存追踪
+    try:
+        from opentelemetry.instrumentation.redis import RedisInstrumentor
+        RedisInstrumentor().instrument()
+    except ImportError:
+        pass  # opentelemetry-instrumentation-redis 未安装
+    except Exception:
+        pass
+
     await init_db()
 
     # 注册信号处理器
@@ -78,6 +109,15 @@ async def _graceful_shutdown():
     try:
         from app.sandbox.agent_runner import shutdown_agent
         await shutdown_agent()
+    except Exception:
+        pass
+
+    # 关闭 OpenTelemetry 追踪
+    try:
+        from opentelemetry import trace
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "shutdown"):
+            provider.shutdown()
     except Exception:
         pass
 
@@ -180,6 +220,7 @@ app.include_router(sse.router)
 app.include_router(files.router)
 app.include_router(websocket.router)
 app.include_router(auth.router)
+app.include_router(apikeys.router)
 
 # ——— Metrics Router ————————————————————————————————————————————————————
 

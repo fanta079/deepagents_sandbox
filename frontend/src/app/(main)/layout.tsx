@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/lib/components";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { href: "/", label: "仪表盘", icon: LayoutDashboard },
@@ -122,6 +123,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           <div className="flex-1" />
+          <ThemeToggle />
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

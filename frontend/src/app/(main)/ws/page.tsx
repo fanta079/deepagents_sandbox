@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { io, Socket } from "socket.io-client";
+import { ReconnectingWebSocket, ReconnectingSocketOptions } from "@/lib/websocket";
 import { Button, Input, Card, CardContent } from "@/lib/components";
 import { Send, Users } from "lucide-react";
 import type { WSMessage } from "@/types";
@@ -10,13 +10,14 @@ import { cn } from "@/lib/utils";
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 export default function WsPage() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [ws, setWs] = useState<ReconnectingWebSocket | null>(null);
   const [messages, setMessages] = useState<WSMessage[]>([]);
   const [input, setInput] = useState("");
   const [username, setUsername] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
   const [showLogin, setShowLogin] = useState(true);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -32,71 +33,90 @@ export default function WsPage() {
     const userName = name.trim();
     setUsername(userName);
 
-    const newSocket = io(WS_URL, {
+    const options: ReconnectingSocketOptions = {
+      url: WS_URL,
       path: "/ws",
       query: { user_id: userName },
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    });
+      maxRetries: 10,
+      baseDelay: 1000,
+      maxDelay: 30000,
+    };
 
-    newSocket.on("connect", () => {
+    const reconnectingWs = new ReconnectingWebSocket(options);
+
+    reconnectingWs.onConnect = () => {
       setIsConnected(true);
       setMessages((prev) => [
         ...prev,
-        { type: "system", content: "已重新连接", timestamp: new Date().toISOString() },
+        { type: "system", content: "已连接到服务器", timestamp: new Date().toISOString() },
       ]);
-    });
-    newSocket.on("disconnect", () => setIsConnected(false));
+    };
 
-    newSocket.on("message", (data: string) => {
-      try {
-        setMessages((prev) => [...prev, JSON.parse(data)]);
-      } catch {
-        setMessages((prev) => [...prev, { type: "message", user_id: "unknown", content: data, timestamp: new Date().toISOString() }]);
+    reconnectingWs.onDisconnect = (reason: string) => {
+      setIsConnected(false);
+      if (reason !== "io client disconnect") {
+        setMessages((prev) => [
+          ...prev,
+          { type: "system", content: `连接已断开 (${reason})，正在尝试重连...`, timestamp: new Date().toISOString() },
+        ]);
       }
-    });
+    };
 
-    newSocket.on("system", (data: string) => {
-      try {
-        const msg = JSON.parse(data) as WSMessage;
-        setMessages((prev) => [...prev, msg]);
-        const match = msg.content.match(/(\d+) 人/);
-        if (match) setOnlineCount(parseInt(match[1]));
-      } catch {
-        setMessages((prev) => [...prev, { type: "system", content: data, timestamp: new Date().toISOString() }]);
-      }
-    });
-
-    newSocket.on("personal", (data: string) => {
-      try {
-        setMessages((prev) => [...prev, JSON.parse(data)]);
-      } catch {}
-    });
-
-    newSocket.on("connect_error", () => setIsConnected(false));
-    newSocket.on("reconnect_attempt", (attempt: number) => {
+    reconnectingWs.onReconnecting = (attempt: number, delay: number) => {
+      setReconnectAttempt(attempt);
       setMessages((prev) => [
         ...prev,
-        { type: "system", content: `正在重连 (${attempt}/5)...`, timestamp: new Date().toISOString() },
+        { type: "system", content: `正在重连 (${attempt}/10)，${(delay / 1000).toFixed(1)}s 后...`, timestamp: new Date().toISOString() },
       ]);
-    });
-    newSocket.on("reconnect_failed", () => {
+    };
+
+    reconnectingWs.onReconnectFailed = () => {
       setMessages((prev) => [
         ...prev,
         { type: "system", content: "重连失败，请刷新页面", timestamp: new Date().toISOString() },
       ]);
-    });
+    };
 
-    setSocket(newSocket);
+    reconnectingWs.onMessage = (data: unknown) => {
+      try {
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        setMessages((prev) => [...prev, parsed as WSMessage]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          { type: "message", user_id: "unknown", content: String(data), timestamp: new Date().toISOString() },
+        ]);
+      }
+    };
+
+    reconnectingWs.onSystem = (data: unknown) => {
+      try {
+        const msg = (typeof data === "string" ? JSON.parse(data) : data) as WSMessage;
+        setMessages((prev) => [...prev, msg]);
+        const match = msg.content?.toString().match(/(\d+) 人/);
+        if (match) setOnlineCount(parseInt(match[1]));
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          { type: "system", content: String(data), timestamp: new Date().toISOString() },
+        ]);
+      }
+    };
+
+    reconnectingWs.onPersonal = (data: unknown) => {
+      try {
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        setMessages((prev) => [...prev, parsed as WSMessage]);
+      } catch {}
+    };
+
+    setWs(reconnectingWs);
     setShowLogin(false);
   };
 
   const sendMessage = () => {
-    if (!input.trim() || !socket) return;
-    socket.emit("message", JSON.stringify({ type: "message", content: input.trim() }));
+    if (!input.trim() || !ws) return;
+    ws.send("message", { type: "message", content: input.trim() });
     setInput("");
   };
 
@@ -108,8 +128,10 @@ export default function WsPage() {
   };
 
   useEffect(() => {
-    return () => { socket?.disconnect(); };
-  }, [socket]);
+    return () => {
+      ws?.disconnect();
+    };
+  }, [ws]);
 
   if (showLogin) {
     return (
@@ -140,7 +162,7 @@ export default function WsPage() {
           <p className="text-muted-foreground">
             用户: <strong>{username}</strong> ·{" "}
             <span className={isConnected ? "text-green-600" : "text-red-600"}>
-              {isConnected ? "已连接" : "未连接"}
+              {isConnected ? "已连接" : reconnectAttempt > 0 ? `重连中 (${reconnectAttempt}/10)` : "未连接"}
             </span>
           </p>
         </div>
